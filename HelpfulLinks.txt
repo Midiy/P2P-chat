@@ -1,0 +1,21 @@
+# Encoding: utf-8
+
+Python:
+	https://habr.com/post/186608/ - Магические методы классов
+	https://www.severcast.org/blog/all/python_import_modules - Система модулей
+
+async/await:
+	https://docs.microsoft.com/ru-ru/dotnet/csharp/language-reference/keywords/await - Абсолютно неожиданно, доки по C#.
+																					   Но там реально принцип работы await
+																					   описан в разы лучше и понятней
+																					   (разумеется, субъективно), чем во
+																					   всём, что я видел по Питону...
+
+asyncio:
+	https://habr.com/post/217143/
+	https://habr.com/post/337420/
+	https://proglib.io/p/python-asyncio/
+
+sockets:
+	https://habr.com/post/149077/
+	https://docs.python.org/3/library/socket.html
