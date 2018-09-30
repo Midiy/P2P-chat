@@ -5,6 +5,16 @@ VisualStudioVersion = 15.0.28010.2036
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "P2P-client", "P2P-client\P2P-client.pyproj", "{FA4B4D44-B613-4F4D-849D-E6C8D2414150}"
 EndProject
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "P2P-server", "P2P-server\P2P-server.pyproj", "{D2998B03-AC41-4B1B-A446-FC99258E7400}"
+EndProject
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "P2P-lib", "P2P-lib\P2P-lib.pyproj", "{79DFCBBB-C2AF-41E0-B245-262B5ECE9829}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{B11CD3D4-096B-4129-BA8F-1B9AB102BC44}"
+	ProjectSection(SolutionItems) = preProject
+		CheatSheet.txt = CheatSheet.txt
+		TODO.txt = TODO.txt
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -13,6 +23,10 @@ Global
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{FA4B4D44-B613-4F4D-849D-E6C8D2414150}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{FA4B4D44-B613-4F4D-849D-E6C8D2414150}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D2998B03-AC41-4B1B-A446-FC99258E7400}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D2998B03-AC41-4B1B-A446-FC99258E7400}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{79DFCBBB-C2AF-41E0-B245-262B5ECE9829}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{79DFCBBB-C2AF-41E0-B245-262B5ECE9829}.Release|Any CPU.ActiveCfg = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
