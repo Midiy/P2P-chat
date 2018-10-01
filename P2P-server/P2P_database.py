@@ -26,4 +26,4 @@ def db_del_friend(login_cl : str, login_fr : str):
 #3.2.
 def db_search_friends(login : str):
     #result=cur.fetchall()
-    return ['friend_1','friend_2']
+    return ('friend_1','friend_2')
