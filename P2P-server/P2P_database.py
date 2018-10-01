@@ -106,3 +106,13 @@ def db_search_IP(login : str):
     result = cur.fetchone()
     cur.close()
     return result
+
+
+#db_init()
+#db_add_client()
+#db_search_password()
+#db_search_IP()
+#db_update_password()
+#db_update_IP()
+#db_search_friends()
+#...
