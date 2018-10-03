@@ -10,6 +10,7 @@ async/await:
 																					   описан в разы лучше и понятней
 																					   (разумеется, субъективно), чем во
 																					   всём, что я видел по Питону...
+	https://docs.microsoft.com/ru-ru/dotnet/csharp/programming-guide/concepts/async/index#BKMK_WhatHappensUnderstandinganAsyncMethod - концепция асинхронного программирования (снова C#)
 
 asyncio:
 	https://habr.com/post/217143/
