@@ -1,0 +1,3 @@
+P2P_database.db_search_password() возвращает int, если пароль состоит только из цифр.
+В P2P_database.db_update_ip(), P2P_database.db_update_password() и P2P_database.db_del_client() вероятно, нужно использовать "?" вместо "%s".
+Добавленные пользователи не сохраняются после перезапуска программы.

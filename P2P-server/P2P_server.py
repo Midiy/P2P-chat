@@ -16,21 +16,21 @@ def _int_to_bytes(i: int) -> bytes:
             raise ValueError("Integer must be 4-byte or less.")
         return bytes([(i & 0xFF000000) >> 24, (i & 0x00FF0000) >> 16, (i & 0x0000FF00) >> 8, i & 0x000000FF])
     except Exception as e:
-        err_log(e.args[0], "P2P_server._int_to_bytes()")
+        err_log(e, "P2P_server._int_to_bytes()")
         raise e
 
 def _defstr_to_bytes(st: str) -> bytes:
     try:
         return _int_to_bytes(len(st)) + bytes(st, "utf-8")
     except Exception as e:
-        err_log(e.args[0], "P2P_server._defstr_to_bytes()")
+        err_log(e, "P2P_server._defstr_to_bytes()")
         raise e
 
 def _bytes_to_int(bts: bytes, start: int=0) -> (int, bytes):
     try:
         return bts[start] << 24 | bts[start + 1] << 16 | bts[start + 2] << 8 | bts[start + 3], bts[4:]
     except Exception as e:
-        err_log(e.args[0], "P2P_server._bytes_to_int()")
+        err_log(e, "P2P_server._bytes_to_int()")
         raise e
 
 def _bytes_to_str(bts: bytes, start: int=0, length: int=-1) -> (str, bytes):
@@ -40,7 +40,7 @@ def _bytes_to_str(bts: bytes, start: int=0, length: int=-1) -> (str, bytes):
         else:
             return bts[start:start + length].decode(), bts[start + length]
     except Exception as e:
-        err_log(e.args[0], "P2P_server._bytes_to_str()")
+        err_log(e, "P2P_server._bytes_to_str()")
         raise e
 
 def _bytes_to_defstr(bts: bytes, start: int=0) -> (str, bytes):
@@ -49,7 +49,7 @@ def _bytes_to_defstr(bts: bytes, start: int=0) -> (str, bytes):
         start += 4
         return bts[start:start + length].decode(), bts[:start - 4] + bts[start + length:]
     except Exception as e:
-        err_log(e.args[0], "P2P_server._bytes_to_defstr()")
+        err_log(e, "P2P_server._bytes_to_defstr()")
         raise e
 #endregion
 
@@ -63,18 +63,18 @@ async def _get_data(reader: asyncio.StreamReader, timeout: int=5) -> (int, bytes
                 raise ConnectionAbortedError()
         length, _ = _bytes_to_int(await _l_get_data(4))
         result = await _l_get_data(length)
-        return (_bytes_to_int(result)[0], result[4:])
+        return (result[0], result[1:])
     except Exception as e:
-        err_log(e.args[0], "P2P_server._get_data()")
+        err_log(e, "P2P_server._get_data()")
         raise e
 
 async def _send_data(writer: asyncio.StreamWriter, code: int, data: bytes=bytes()):
     try:
-        data_to_send = _int_to_bytes(len(data) + 4) + _int_to_bytes(code) + data
-        await writer.write(data_to_send)
+        data_to_send = _int_to_bytes(len(data) + 1) + bytes([code]) + data
+        writer.write(data_to_send)
         await writer.drain()
     except Exception as e:
-        err_log(e.args[0], "P2P_server._send_data()")
+        err_log(e, "P2P_server._send_data()")
         raise e
 
 async def _on_connect(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
@@ -96,11 +96,11 @@ async def _on_connect(reader: asyncio.StreamReader, writer: asyncio.StreamWriter
                     pass_hash, _ = _bytes_to_defstr(data)
                     log(f"Registration {client_ip}:{client_port} as '{login}'...")
                     if (P2P_database.db_search_ip(login) != "0.0.0.0"):
-                        await _send_data(writer, -2, _defstr_to_bytes("This login is already registered."))
+                        await _send_data(writer, 254, _defstr_to_bytes("This login is already registered."))
                         log(f"Registration {client_ip}:{client_port} as '{login}' was refused.")
                         continue
-                    pass_hash = ""
                     P2P_database.db_add_client(login, pass_hash, client_ip)
+                    pass_hash = ""
                     await _send_data(writer, 1)
                     log(f"Registration {client_ip}:{client_port} as '{login}' was confirmed.")
                     timeout = 60
@@ -109,7 +109,7 @@ async def _on_connect(reader: asyncio.StreamReader, writer: asyncio.StreamWriter
                     pass_hash, _ = _bytes_to_defstr(data)
                     log(f"Login {client_ip}:{client_port} as '{login}'...")
                     if (P2P_database.db_search_password(login) != pass_hash):
-                        await _send_data(writer, -1, _defstr_to_bytes("Password is incorrect."))
+                        await _send_data(writer, 255, _defstr_to_bytes("Password is incorrect."))
                         log(f"Login {client_ip}:{client_port} as '{login}' was refused.")
                         continue
                     pass_hash = ""
@@ -123,15 +123,15 @@ async def _on_connect(reader: asyncio.StreamReader, writer: asyncio.StreamWriter
                     ips = _int_to_bytes(login_count)
                     while login_count > 0:
                         requested_login, data = _bytes_to_defstr(data)
-                        ips += _defstr_to_bytes(P2P_database.db_search_ip(reqested_login))
+                        ips += _defstr_to_bytes(P2P_database.db_search_ip(requested_login))
                         login_count -= 1
                     await _send_data(writer, 3, ips)
                     log(f"Requested IPs was sent to {client_ip}:{client_port}.")
                 elif code == 4:   # Delete user request
                     pass_hash, _ = _bytes_to_defstr(data)
                     log(f"Deleting of '{login}' was requested by {client_ip}:{client_port}...")
-                    if (P2P_database.db_find_password(login) != pass_hash):
-                        await _send_data(writer, -1, _defstr_to_bytes("Password is incorrect."))
+                    if (P2P_database.db_search_password(login) != pass_hash):
+                        await _send_data(writer, 255, _defstr_to_bytes("Password is incorrect."))
                         log(f"Deleting of '{login}' requested by {client_ip}:{client_port} was refused.")
                         continue
                     P2P_database.db_del_client(login)
@@ -151,7 +151,7 @@ async def _on_connect(reader: asyncio.StreamReader, writer: asyncio.StreamWriter
                 break
         writer.close
     except Exception as e:
-        err_log(e.args[0], "P2P_server._on_connect()")
+        err_log(e, "P2P_server._on_connect()")
         raise e
 
 async def _wait_for_interrupt():
@@ -179,5 +179,5 @@ if __name__ == "__main__":
             loop.close()
             P2P_database.db_fini()
     except Exception as e:
-        err_log(e.args[0], "P2P_server.main()")   
+        err_log(e, "P2P_server.main()")   
         raise e

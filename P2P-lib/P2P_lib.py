@@ -21,7 +21,7 @@ def log(message: str, mode: str="server", file_only: bool=False):
         log_file.write(str_message + "\n")
         log_file.close()
     except Exception as e:
-        err_log(e.args[0], "P2P_lib.log()")
+        err_log(e, "P2P_lib.log()")
         raise e
 
 def err_log(message: str, source: str, mode: str="server", file_only: bool=False):
