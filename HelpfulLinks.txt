@@ -3,6 +3,7 @@
 Python:
 	https://habr.com/post/186608/ - Магические методы классов
 	https://www.severcast.org/blog/all/python_import_modules - Система модулей
+	https://habr.com/post/141411/ - Декораторы
 
 async/await:
 	https://docs.microsoft.com/ru-ru/dotnet/csharp/language-reference/keywords/await - Абсолютно неожиданно, доки по C#.
