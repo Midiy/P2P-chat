@@ -1,17 +1,17 @@
-# Encoding: utf-8
+п»ї# Encoding: utf-8
 
 Python:
-	https://habr.com/post/186608/ - Магические методы классов
-	https://www.severcast.org/blog/all/python_import_modules - Система модулей
-	https://habr.com/post/141411/ - Декораторы
+	https://habr.com/post/186608/ - РњР°РіРёС‡РµСЃРєРёРµ РјРµС‚РѕРґС‹ РєР»Р°СЃСЃРѕРІ
+	https://www.severcast.org/blog/all/python_import_modules - РЎРёСЃС‚РµРјР° РјРѕРґСѓР»РµР№
+	https://habr.com/post/141411/ - Р”РµРєРѕСЂР°С‚РѕСЂС‹
 
 async/await:
-	https://docs.microsoft.com/ru-ru/dotnet/csharp/language-reference/keywords/await - Абсолютно неожиданно, доки по C#.
-																					   Но там реально принцип работы await
-																					   описан в разы лучше и понятней
-																					   (разумеется, субъективно), чем во
-																					   всём, что я видел по Питону...
-	https://docs.microsoft.com/ru-ru/dotnet/csharp/programming-guide/concepts/async/index#BKMK_WhatHappensUnderstandinganAsyncMethod - концепция асинхронного программирования (снова C#)
+	https://docs.microsoft.com/ru-ru/dotnet/csharp/language-reference/keywords/await - РђР±СЃРѕР»СЋС‚РЅРѕ РЅРµРѕР¶РёРґР°РЅРЅРѕ, РґРѕРєРё РїРѕ C#.
+																					   РќРѕ С‚Р°Рј СЂРµР°Р»СЊРЅРѕ РїСЂРёРЅС†РёРї СЂР°Р±РѕС‚С‹ await
+																					   РѕРїРёСЃР°РЅ РІ СЂР°Р·С‹ Р»СѓС‡С€Рµ Рё РїРѕРЅСЏС‚РЅРµР№
+																					   (СЂР°Р·СѓРјРµРµС‚СЃСЏ, СЃСѓР±СЉРµРєС‚РёРІРЅРѕ), С‡РµРј РІРѕ
+																					   РІСЃС‘Рј, С‡С‚Рѕ СЏ РІРёРґРµР» РїРѕ РџРёС‚РѕРЅСѓ...
+	https://docs.microsoft.com/ru-ru/dotnet/csharp/programming-guide/concepts/async/index#BKMK_WhatHappensUnderstandinganAsyncMethod - РєРѕРЅС†РµРїС†РёСЏ Р°СЃРёРЅС…СЂРѕРЅРЅРѕРіРѕ РїСЂРѕРіСЂР°РјРјРёСЂРѕРІР°РЅРёСЏ (СЃРЅРѕРІР° C#)
 
 asyncio:
 	https://habr.com/post/217143/

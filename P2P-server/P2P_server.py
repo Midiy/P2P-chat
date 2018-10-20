@@ -1,27 +1,30 @@
 ﻿# Encoding: utf-8
 
 import asyncio
-import P2P_database
+from P2P_database import DataBaseServer
 from concurrent.futures import TimeoutError
 from P2P_lib import Logger, Extentions
 
 
+_database: DataBaseServer = None
+
+
 @Logger.logged("P2P_server")
 async def _get_data(reader: asyncio.StreamReader, timeout: int=5) -> (int, bytes):
-    async def _l_get_data(len: int) -> (bytes):
-        data = await asyncio.wait_for(reader.read(len), timeout=timeout)
+    async def _l_get_data(length: int) -> (bytes):
+        data = await asyncio.wait_for(reader.read(length), timeout=timeout)
         if data:
             return data
         else:
             raise ConnectionAbortedError()
-    length, _ = Extentions._bytes_to_int(await _l_get_data(4))
+    length, _ = Extentions.bytes_to_int(await _l_get_data(4))
     result = await _l_get_data(length)
     return (result[0], result[1:])
 
 
 @Logger.logged("P2P_server")
 async def _send_data(writer: asyncio.StreamWriter, code: int, data: bytes=bytes()):
-    data_to_send = Extentions._int_to_bytes(len(data) + 1) + bytes([code]) + data
+    data_to_send = Extentions.int_to_bytes(len(data) + 1) + bytes([code]) + data
     writer.write(data_to_send)
     await writer.drain()
 
@@ -41,56 +44,56 @@ async def _on_connect(reader: asyncio.StreamReader, writer: asyncio.StreamWriter
                 await _send_data(writer, 0)
                 Logger.log(f"Ping was sent to {client_ip}:{client_port}.")
             elif code == 1:   # Registration
-                login, data = Extentions._bytes_to_defstr(data)
-                pass_hash, _ = Extentions._bytes_to_defstr(data)
+                login, data = Extentions.bytes_to_defstr(data)
+                pass_hash, _ = Extentions.bytes_to_defstr(data)
                 Logger.log(f"Registration {client_ip}:{client_port} as '{login}'...")
-                if (P2P_database.db_search_ip(login) != "0.0.0.0"):
-                    await _send_data(writer, 254, Extentions._defstr_to_bytes("This login is already registered."))
+                if (_database.search_ip(login) != "0.0.0.0"):
+                    await _send_data(writer, 254, Extentions.defstr_to_bytes("This login is already registered."))
                     Logger.log(f"Registration {client_ip}:{client_port} as '{login}' was refused.")
                     continue
-                P2P_database.db_add_client(login, pass_hash, client_ip)
+                _database.add_client(login, pass_hash, client_ip)
                 pass_hash = ""
                 await _send_data(writer, 1)
                 Logger.log(f"Registration {client_ip}:{client_port} as '{login}' was confirmed.")
                 timeout = 60
             elif code == 2:   # Login
-                login, data = Extentions._bytes_to_defstr(data)
-                pass_hash, _ = Extentions._bytes_to_defstr(data)
+                login, data = Extentions.bytes_to_defstr(data)
+                pass_hash, _ = Extentions.bytes_to_defstr(data)
                 Logger.log(f"Login {client_ip}:{client_port} as '{login}'...")
-                if (P2P_database.db_search_password(login) != pass_hash):
-                    await _send_data(writer, 255, Extentions._defstr_to_bytes("Password is incorrect."))
+                if (_database.search_password(login) != pass_hash):
+                    await _send_data(writer, 255, Extentions.defstr_to_bytes("Password is incorrect."))
                     Logger.log(f"Login {client_ip}:{client_port} as '{login}' was refused.")
                     continue
                 pass_hash = ""
                 await _send_data(writer, 2)
                 Logger.log(f"Login {client_ip}:{client_port} as '{login}' was confirmed.")
                 timeout = 60
-                P2P_database.db_update_ip(login, client_ip)
+                _database.update_ip(login, client_ip)
             elif code == 3:   # IP updating request
                 Logger.log(f"IPs was requested by {client_ip}:{client_port}")
-                login_count, data = Extentions._bytes_to_int(data)
-                ips = Extentions._int_to_bytes(login_count)
+                login_count, data = Extentions.bytes_to_int(data)
+                ips = Extentions.int_to_bytes(login_count)
                 while login_count > 0:
-                    requested_login, data = Extentions._bytes_to_defstr(data)
-                    ips += Extentions._defstr_to_bytes(P2P_database.db_search_ip(requested_login))
+                    requested_login, data = Extentions.bytes_to_defstr(data)
+                    ips += Extentions.defstr_to_bytes(_database.search_ip(requested_login))
                     login_count -= 1
                 await _send_data(writer, 3, ips)
                 Logger.log(f"Requested IPs was sent to {client_ip}:{client_port}.")
             elif code == 4:   # Delete user request
-                pass_hash, _ = Extentions._bytes_to_defstr(data)
+                pass_hash, _ = Extentions.bytes_to_defstr(data)
                 Logger.log(f"Deleting of '{login}' was requested by {client_ip}:{client_port}...")
-                if (P2P_database.db_search_password(login) != pass_hash):
-                    await _send_data(writer, 255, Extentions._defstr_to_bytes("Password is incorrect."))
+                if (_database.search_password(login) != pass_hash):
+                    await _send_data(writer, 255, Extentions.defstr_to_bytes("Password is incorrect."))
                     Logger.log(f"Deleting of '{login}' requested by {client_ip}:{client_port} was refused.")
                     continue
-                P2P_database.db_del_client(login)
+                _database.del_client(login)
                 Logger.log(f"Deleting of '{login}' requested by {client_ip}:{client_port} was confirmed.")
                 await _send_data(writer, 4)
                 timeout = 5
                 login = ""
                 pass_hash = ""
             else:
-                msg, _ = Extentions._bytes_to_str(Extentions._int_to_bytes(code) + data)
+                msg, _ = Extentions.bytes_to_str(Extentions.int_to_bytes(code) + data)
                 Logger.log(f"Following message was resieved from {client_ip}:{client_port}:\n{msg}")
         except ConnectionAbortedError:
             Logger.log(f"Connection from {client_ip}:{client_port} closed by peer.")
@@ -98,7 +101,7 @@ async def _on_connect(reader: asyncio.StreamReader, writer: asyncio.StreamWriter
         except TimeoutError:
             Logger.log(f"Connection from {client_ip}:{client_port} closed by timeout.")
             break
-    writer.close
+    writer.close()
 
 
 async def _wait_for_interrupt():
@@ -109,7 +112,9 @@ async def _wait_for_interrupt():
 @Logger.logged("P2P_server")
 def main():
     Logger.log("", file_only=True)
-    P2P_database.db_init()
+    global _database
+    _database = DataBaseServer()
+    _database.init()
     loop = asyncio.get_event_loop()
     server_gen = asyncio.start_server(_on_connect, host="0.0.0.0", port=3501)
     server = loop.run_until_complete(server_gen)
@@ -125,7 +130,6 @@ def main():
     finally:
         server.close()
         loop.close()
-        P2P_database.db_fini()
-
+        del _database
 
 main()

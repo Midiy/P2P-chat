@@ -7,23 +7,24 @@ class Logger:
     Class provides all functionality, that connected with logging.
     """
 
-    def logged(location: str):
+    def logged(location: str, mode: str = "server"):
         """
         Decorator intended to log unhandled exceptions in function.
         It invokes Logger.err_log().
-        
+
         location - Path to decorated function (<module>.<class>.<etc>).
         """
-        def _logged(func, *args):
-            def wrapper(*args):
+        def _logged(func, *args, **kwargs):
+            def wrapper(*args, **kwargs):
                 try:
-                    return func(*args)
+                    return func(*args, **kwargs)
                 except Exception as ex:
-                    Logger.err_log(ex, f"{location}.{func.__name__}()")
+                    Logger.err_log(ex, f"{location}.{func.__name__}()", mode)
                     raise ex
             return wrapper
         return _logged
 
+    @staticmethod
     def err_log(message: str, source: str, mode: str="server", file_only: bool=False):
         """
         Logging occured exception to console and file.
@@ -46,6 +47,7 @@ class Logger:
         except Exception as e:   # DEBUG
             print(e)
 
+    @staticmethod
     @logged("P2P_lib.Logger")
     def log(message: str, mode: str="server", file_only: bool=False):
         """
@@ -71,29 +73,34 @@ class Extentions:
     Class provides converting from/to bytes.
     """
 
+    @staticmethod
     @Logger.logged("P2P_lib.Extentions")
-    def _int_to_bytes(i: int) -> bytes:
+    def int_to_bytes(i: int) -> bytes:
         if i >= 2 ** 32:
             raise ValueError("Integer must be 4-byte or less.")
         return bytes([(i & 0xFF000000) >> 24, (i & 0x00FF0000) >> 16, (i & 0x0000FF00) >> 8, i & 0x000000FF])
 
+    @staticmethod
     @Logger.logged("P2P_lib.Extentions")
-    def _defstr_to_bytes(st: str) -> bytes:
-        return Extentions._int_to_bytes(len(st)) + bytes(st, "utf-8")
+    def defstr_to_bytes(st: str) -> bytes:
+        return Extentions.int_to_bytes(len(st)) + bytes(st, "utf-8")
 
+    @staticmethod
     @Logger.logged("P2P_lib.Extentions")
-    def _bytes_to_int(bts: bytes, start: int=0) -> (int, bytes):
+    def bytes_to_int(bts: bytes, start: int=0) -> (int, bytes):
         return bts[start] << 24 | bts[start + 1] << 16 | bts[start + 2] << 8 | bts[start + 3], bts[4:]
 
+    @staticmethod
     @Logger.logged("P2P_lib.Extentions")
-    def _bytes_to_str(bts: bytes, start: int=0, length: int=-1) -> (str, bytes):
+    def bytes_to_str(bts: bytes, start: int=0, length: int=-1) -> (str, bytes):
         if length == -1:
             return bts[start:].decode(), bytes()
         else:
             return bts[start:start + length].decode(), bts[start + length]
 
+    @staticmethod
     @Logger.logged("P2P_lib.Extentions")
-    def _bytes_to_defstr(bts: bytes, start: int=0) -> (str, bytes):
-        length, _ = Extentions._bytes_to_int(bts, start)
+    def bytes_to_defstr(bts: bytes, start: int=0) -> (str, bytes):
+        length, _ = Extentions.bytes_to_int(bts, start)
         start += 4
         return bts[start:start + length].decode(), bts[:start - 4] + bts[start + length:]

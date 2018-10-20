@@ -21,7 +21,6 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="P2P_database.py" />
     <Compile Include="P2P_server.py" />
   </ItemGroup>
   <ItemGroup>
