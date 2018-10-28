@@ -9,7 +9,7 @@ from P2P_lib import Logger, Extentions
 _database: DataBaseServer = None
 
 
-@Logger.logged("P2P_server")
+@Logger.logged()
 async def _get_data(reader: asyncio.StreamReader, timeout: int=5) -> (int, bytes):
     async def _l_get_data(length: int) -> (bytes):
         data = await asyncio.wait_for(reader.read(length), timeout=timeout)
@@ -22,14 +22,14 @@ async def _get_data(reader: asyncio.StreamReader, timeout: int=5) -> (int, bytes
     return (result[0], result[1:])
 
 
-@Logger.logged("P2P_server")
+@Logger.logged()
 async def _send_data(writer: asyncio.StreamWriter, code: int, data: bytes=bytes()):
     data_to_send = Extentions.int_to_bytes(len(data) + 1) + bytes([code]) + data
     writer.write(data_to_send)
     await writer.drain()
 
 
-@Logger.logged("P2P_server")
+@Logger.logged()
 async def _on_connect(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
     timeout = 5
     login = ""
@@ -109,7 +109,7 @@ async def _wait_for_interrupt():
         await asyncio.sleep(1)
 
 
-@Logger.logged("P2P_server")
+@Logger.logged()
 def main():
     Logger.log("", file_only=True)
     global _database
@@ -131,5 +131,6 @@ def main():
         server.close()
         loop.close()
         del _database
+
 
 main()

@@ -13,7 +13,7 @@ class TestClientException(Exception):
         self._message = message
 
     def __str__(self):
-        return self._message    
+        return self._message
 
 
 @Logger.logged("P2P_TestClient", "test_client")
@@ -22,15 +22,17 @@ def _get_gata(sock: socket) -> (int, bytes):
     result = sock.recv(length)
     return (result[0], result[1:])
 
+
 @Logger.logged("P2P_TestClient", "test_client")
 def _send_data(sock: socket, code: int, data: bytes = bytes()):
     data_to_send = Extentions.int_to_bytes(len(data) + 1) + bytes([code]) + data
     sock.send(data_to_send)
 
+
 @Logger.logged("P2P_TestClient", "test_client")
 def main():
     remove("test_client.log")
-    sock : socket = socket()
+    sock: socket = socket()
     sock.connect(("localhost", 3501))
     Logger.log("Connection with localhost:3501 was established.", "test_client")
     _send_data(sock, 0)
@@ -84,5 +86,6 @@ def main():
     Logger.log("TestUser3's IP : " + Extentions.bytes_to_defstr(received_data[4:])[0], "test_client")
     sock.close()
     Logger.log("Test successfully ended.", "test_client")
+
 
 main()
