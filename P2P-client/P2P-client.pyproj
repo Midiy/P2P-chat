@@ -5,8 +5,7 @@
     <ProjectGuid>fa4b4d44-b613-4f4d-849d-e6c8d2414150</ProjectGuid>
     <ProjectHome>.</ProjectHome>
     <StartupFile>P2P_client_network.py</StartupFile>
-    <SearchPath>
-    </SearchPath>
+    <SearchPath>..\P2P-lib</SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
     <Name>P2P-client</Name>

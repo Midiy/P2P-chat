@@ -5,8 +5,7 @@
     <ProjectGuid>d2998b03-ac41-4b1b-a446-fc99258e7400</ProjectGuid>
     <ProjectHome>.</ProjectHome>
     <StartupFile>P2P_server.py</StartupFile>
-    <SearchPath>
-    </SearchPath>
+    <SearchPath>..\P2P-lib</SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
     <Name>P2P-server</Name>

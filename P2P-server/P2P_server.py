@@ -32,7 +32,7 @@ async def _send_data(writer: asyncio.StreamWriter, code: int, data: bytes=bytes(
 @Logger.logged()
 async def _on_connect(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
     timeout = 5
-    login = ""
+    login = None
     client_endpoint = writer.get_extra_info("peername")
     client_ip = client_endpoint[0]
     client_port = client_endpoint[1]
@@ -52,7 +52,7 @@ async def _on_connect(reader: asyncio.StreamReader, writer: asyncio.StreamWriter
                     Logger.log(f"Registration {client_ip}:{client_port} as '{login}' was refused.")
                     continue
                 _database.add_client(login, pass_hash, client_ip)
-                pass_hash = ""
+                pass_hash = None
                 await _send_data(writer, 1)
                 Logger.log(f"Registration {client_ip}:{client_port} as '{login}' was confirmed.")
                 timeout = 60
@@ -80,18 +80,21 @@ async def _on_connect(reader: asyncio.StreamReader, writer: asyncio.StreamWriter
                 await _send_data(writer, 3, ips)
                 Logger.log(f"Requested IPs was sent to {client_ip}:{client_port}.")
             elif code == 4:   # Delete user request
-                pass_hash, _ = Extentions.bytes_to_defstr(data)
-                Logger.log(f"Deleting of '{login}' was requested by {client_ip}:{client_port}...")
-                if (_database.search_password(login) != pass_hash):
-                    await _send_data(writer, 255, Extentions.defstr_to_bytes("Password is incorrect."))
-                    Logger.log(f"Deleting of '{login}' requested by {client_ip}:{client_port} was refused.")
-                    continue
-                _database.del_client(login)
-                Logger.log(f"Deleting of '{login}' requested by {client_ip}:{client_port} was confirmed.")
-                await _send_data(writer, 4)
-                timeout = 5
-                login = ""
-                pass_hash = ""
+                if login is None:
+                    await _send_data(writer, 253, Extentions.defstr_to_bytes("You should login first."))
+                else:
+                    pass_hash, _ = Extentions.bytes_to_defstr(data)
+                    Logger.log(f"Deleting of '{login}' was requested by {client_ip}:{client_port}...")
+                    if (_database.search_password(login) != pass_hash):
+                        await _send_data(writer, 255, Extentions.defstr_to_bytes("Password is incorrect."))
+                        Logger.log(f"Deleting of '{login}' requested by {client_ip}:{client_port} was refused.")
+                        continue
+                    _database.del_client(login)
+                    Logger.log(f"Deleting of '{login}' requested by {client_ip}:{client_port} was confirmed.")
+                    await _send_data(writer, 4)
+                    timeout = 5
+                    login = ""
+                    pass_hash = ""
             else:
                 msg, _ = Extentions.bytes_to_str(Extentions.int_to_bytes(code) + data)
                 Logger.log(f"Following message was resieved from {client_ip}:{client_port}:\n{msg}")
