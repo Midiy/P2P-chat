@@ -3,20 +3,26 @@
 import asyncio
 from concurrent.futures import TimeoutError
 from P2P_lib import Logger, Extentions
+from P2P_database import DataBaseClient
 
 
 class Listener:
 
     _server: asyncio.AbstractServer = None
     _loop: asyncio.AbstractEventLoop = None
+    _server_endpoint: str = None
+    _database: DataBaseClient = None
 
     login: str = None
     on_receive_msg_callback = None
 
     @Logger.logged("client")
-    def __init__(self, login: str, on_receive_msg_callback, listen: bool=True, port: int=3502):
+    def __init__(self, login: str, on_receive_msg_callback, server_endpoint: str,
+                 database: DataBaseClient, listen: bool=True, port: int=3502):
         self.login = login
         self.on_receive_msg_callback = on_receive_msg_callback
+        self._server_endpoint = server_endpoint
+        self._database = database
         if listen:
             self.listen(3502)
         
@@ -58,12 +64,28 @@ class Listener:
                         await _send_data(writer, 0)
                         Logger.log(f"Ping was sent to {client_ip}:{client_port}.", "client")
                     elif code == 2:   # Login
-                        client_login, _ = Extentions.bytes_to_defstr(data)
+                        received_login, _ = Extentions.bytes_to_defstr(data)
+                        if received_login == "server":
+                            await _send_data(writer, 252, Extentions.defstr_to_bytes("'server' is service login!"))
+                            continue
+                        client_login = received_login
                         await _send_data(writer, 2, Extentions.defstr_to_bytes(login))
                         timeout = 60
                         Logger.log(f"Login {client_ip}:{client_port} as '{client_login}' was confirmed.")
+                    elif code == 3:   # IP updating request
+                        login_count, data = Extentions.bytes_to_int(data)
+                        ips = Extentions.int_to_bytes(login_count)
+                        while login_count > 0:
+                            requested_login, data = Extentions.bytes_to_defstr(data)
+                            if requested_login == "server":
+                                ips += Extentions.defstr_to_bytes(_server_endpoint)
+                            else:
+                                ips += Extentions.defstr_to_bytes(_database.search_ip(requested_login))
+                            login_count -= 1
+                        await self._send_data(writer, 3, ips)
+                        Logger.log(f"Requested IPs was sent to {client_ip}:{client_port}.")
                     elif code == 5:   # Text message
-                        if client_login is not None:
+                        if client_login is not None and client_login != "guest":
                             self.on_receive_msg_callback(data, client_login, client_endpoint)
                             await _send_data(5)
                             Logger.log(f"Message from '{client_login}' ({client_ip}:{client_port}) was recieved.")
@@ -280,4 +302,23 @@ class ClientToClient(_IConnection):
             _raise_customised_exception(Extentions.bytes_to_defstr(data)[0])
         Logger.log("Message to '{self.client_login}' ({self._host}:{self._port}) was successfully sent.")
 
+    @Logger.logged("client")
+    async def get_IPs(self, logins: list) -> list:
+        self._recreate_connection()
+        data_to_send = Extentions.int_to_bytes(len(logins))
+        for login in logins:
+            data_to_send += Extentions.defstr_to_bytes(login)
+        await self._send_data(3, data_to_send)
+        code, data = await self._get_data()
+        if code != 3:
+            _raise_customised_exception(Extentions.bytes_to_defstr(data)[0])
+        result = []
+        for i in range(0, len(logins)):
+            requested_ip, data = Extentions.bytes_to_defstr(data)
+            result.append(requested_ip)
+        return result
+
+    @Logger.logged("client")
+    async def get_server_IP(self) -> str:
+        return self.get_IPs("server")[0]
     # TODO: Add some interaction with other client

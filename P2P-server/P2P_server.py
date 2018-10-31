@@ -44,7 +44,11 @@ async def _on_connect(reader: asyncio.StreamReader, writer: asyncio.StreamWriter
                 await _send_data(writer, 0)
                 Logger.log(f"Ping was sent to {client_ip}:{client_port}.")
             elif code == 1:   # Registration
-                login, data = Extentions.bytes_to_defstr(data)
+                received_login, data = Extentions.bytes_to_defstr(data)
+                if received_login == "server" or received_login == "guest":
+                    await _send_data(writer, 252, Extentions.defstr_to_bytes("'server' is service login!"))
+                    continue
+                login = received_login
                 pass_hash, _ = Extentions.bytes_to_defstr(data)
                 Logger.log(f"Registration {client_ip}:{client_port} as '{login}'...")
                 if (_database.search_ip(login) != "0.0.0.0"):
@@ -57,7 +61,11 @@ async def _on_connect(reader: asyncio.StreamReader, writer: asyncio.StreamWriter
                 Logger.log(f"Registration {client_ip}:{client_port} as '{login}' was confirmed.")
                 timeout = 60
             elif code == 2:   # Login
-                login, data = Extentions.bytes_to_defstr(data)
+                received_login, data = Extentions.bytes_to_defstr(data)
+                if received_login == "server" or received_login == "guest":
+                    await _send_data(writer, 252, Extentions.defstr_to_bytes("'server' is service login!"))
+                    continue
+                login = received_login
                 pass_hash, _ = Extentions.bytes_to_defstr(data)
                 Logger.log(f"Login {client_ip}:{client_port} as '{login}'...")
                 if (_database.search_password(login) != pass_hash):
