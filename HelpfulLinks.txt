@@ -7,10 +7,10 @@ Python:
 
 async/await:
 	https://docs.microsoft.com/ru-ru/dotnet/csharp/language-reference/keywords/await - Абсолютно неожиданно, доки по C#.
-																					   Но там реально принцип работы await
-																					   описан в разы лучше и понятней
-																					   (разумеется, субъективно), чем во
-																					   всём, что я видел по Питону...
+		Но там реально принцип работы await
+		описан в разы лучше и понятней
+		(разумеется, субъективно), чем во
+		всём, что я видел по Питону...
 	https://docs.microsoft.com/ru-ru/dotnet/csharp/programming-guide/concepts/async/index#BKMK_WhatHappensUnderstandinganAsyncMethod - концепция асинхронного программирования (снова C#)
 
 asyncio:
