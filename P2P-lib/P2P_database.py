@@ -1,24 +1,19 @@
-import sqlite3 
-import os
-# import calendar
-# import time
-import unittest
+import sqlite3
+from datetime import datetime, MINYEAR
 
 
-
-class DataBaseServer():
-    _db_conn = None
-    _db_file = None
-
+class DataBaseServer:
     def __init__(self, file: str = 'Chinook_Sqlite.sqlite'):
         self._db_file = file
+        self._db_conn = None
 
     def init(self) -> bool:
         self._db_conn = sqlite3.connect(self._db_file)
         cur = self._db_conn.cursor()
         cur.execute("SELECT COUNT(sql) FROM sqlite_master WHERE type = 'table' AND name = 'clients';")
         if cur.fetchone()[0] == 0:
-            cur.execute('CREATE TABLE clients (login STRING PRIMARY KEY UNIQUE NOT NULL, password STRING, ip STRING);')
+            cur.execute('CREATE TABLE clients (login STRING PRIMARY KEY UNIQUE NOT NULL, password STRING, ip STRING,'
+                        ' last_time DATETIME);')
             self._db_conn.commit()
             if cur.rowcount == 0:
                 return False
@@ -32,7 +27,8 @@ class DataBaseServer():
     # 1.1.
     def add_client(self, login: str, password: str, ip: str)->bool:
         cur = self._db_conn.cursor()
-        cur.execute("INSERT INTO clients (login, password, ip) VALUES (?, ?, ?);", (login, password, ip))
+        cur.execute("INSERT INTO clients (login, password, ip, last_time) VALUES (?, ?, ?, ?);",
+                    (login, password, ip, datetime.now()))
         _status = cur.rowcount == 1
         cur.close()
         self._db_conn.commit()
@@ -59,7 +55,7 @@ class DataBaseServer():
     # 4.1.
     def update_ip(self, login: str, ip: str)->bool:
         cur = self._db_conn.cursor()
-        cur.execute("UPDATE clients SET ip = ? WHERE login = ? ;", (ip, login))
+        cur.execute("UPDATE clients SET ip = ?, last_time = ? WHERE login = ? ;", (ip, datetime.now(), login))
         _status = cur.rowcount == 1
         cur.close()
         self._db_conn.commit()
@@ -85,20 +81,28 @@ class DataBaseServer():
             return '0.0.0.0'
         return result[0]
 
+    # 3.3.
+    def search_last_time(self, login: str) -> datetime:
+        cur = self._db_conn.cursor()
+        cur.execute("SELECT last_time FROM clients WHERE login = ? ;", (login,))
+        result = cur.fetchone()
+        cur.close()
+        if result is None:
+            return datetime(MINYEAR, 1, 1)
+        return datetime.strptime(result[0], '%Y-%m-%d %H:%M:%S.%f')
 
-class DataBaseClient():
-    _db_conn = None
-    _db_file = None
 
+class DataBaseClient:
     def __init__(self, file: str = 'Chinook_Sqlite.sqlite'):
         self._db_file = file
+        self._db_conn = None
 
     def init(self) -> bool:
         self._db_conn = sqlite3.connect(self._db_file)
         cur = self._db_conn.cursor()
         cur.execute("SELECT COUNT(sql) FROM sqlite_master WHERE type = 'table' AND name = 'friends';")
         if cur.fetchone()[0] == 0:
-            cur.execute('CREATE TABLE friends ( friend STRING, ip STRING );')
+            cur.execute('CREATE TABLE friends ( friend STRING, ip STRING, last_time DATETIME );')
             self._db_conn.commit()
             if cur.rowcount == 0:
                 return False
@@ -119,7 +123,7 @@ class DataBaseClient():
     # Нужно ли другу кидать клиента?
     def add_friend(self, login_fr: str, ip_fr: str)->bool:
         cur = self._db_conn.cursor()
-        cur.execute("INSERT INTO friends (friend, ip) VALUES (?, ?);", (login_fr, ip_fr))
+        cur.execute("INSERT INTO friends (friend, ip, last_time) VALUES (?, ?, ?);", (login_fr, ip_fr, datetime.now()))
         _status = cur.rowcount == 1
         cur.close()
         self._db_conn.commit()
@@ -140,17 +144,29 @@ class DataBaseClient():
     def get_all_friends(self)->list:
         cur = self._db_conn.cursor()
         cur.execute("SELECT friend FROM friends ;")
-        result = cur.fetchall()
+        lst = cur.fetchall()
         cur.close()
+        result = []
+        for i in lst:
+            result += i
         return result
 
     def update_ip(self, login: str, ip: str) -> bool:
         cur = self._db_conn.cursor()
-        cur.execute("UPDATE friends SET ip = ? WHERE login = ? ;", (ip, login))
+        cur.execute("UPDATE friends SET ip = ?, last_time = ? WHERE friend = ? ;", (ip, datetime.now(), login))
         _status = cur.rowcount == 1
         cur.close()
         self._db_conn.commit()
         return _status
+
+    def search_ip_and_last_time(self, login: str) -> (str, datetime):
+        cur = self._db_conn.cursor()
+        cur.execute("SELECT ip, last_time FROM friends WHERE friend = ? ;", (login, ))
+        result = cur.fetchall()
+        cur.close()
+        if result is None:
+            return []
+        return result[0][0], datetime.strptime(result[0][1], '%Y-%m-%d %H:%M:%S.%f')
 
     def add_message(self, login_fr: str, time, type_m: bool, mess)->bool:
         cur = self._db_conn.cursor()
@@ -173,51 +189,3 @@ class DataBaseClient():
         result = cur.fetchall()
         cur.close()
         return result
-
-
-
-# db_search_IP()
-# db_update_password()
-# db_update_IP()
-# db_search_friends()
-
-# db_fini()
-
-
-
-class P2PDataBaseTest(unittest.TestCase):
-    def test_server(self):
-        db = DataBaseServer("test.sqlite")
-        self.assertTrue(db.init())
-        self.assertTrue(db.add_client('login', 'password', '222.222.222.222'))
-        self.assertTrue(db.add_client('login2', '12345', '111.111.111.111'))
-        self.assertTrue(db.add_client('login55', '1111', '232.232.232.232'))
-        self.assertTrue(db.del_client('login55'))
-        self.assertEqual(db.search_password('login55'), '-')
-
-        self.assertEqual(db.search_password('login'), 'password')
-        self.assertEqual(type(db.search_password('login2')), str)
-        self.assertEqual(db.search_password('login2'), '12345')
-        self.assertTrue(db.update_password('login', '1q2w3e'))
-        self.assertFalse(db.update_password('login333', '6t7y8u'))
-        self.assertEqual(db.search_password('login'), '1q2w3e')
-
-        self.assertEqual(db.search_ip('login'), '222.222.222.222')
-        self.assertEqual(db.search_ip('login2'), '111.111.111.111')
-        self.assertTrue(db.update_ip('login', '123.123.123.123'))
-        self.assertFalse(db.update_ip('login333', '121.121.121.121'))
-        self.assertEqual(db.search_ip('login'), '123.123.123.123')
-
-        del db
-        db1 = DataBaseServer("test.sqlite")
-        self.assertTrue(db1.init())
-        self.assertEqual(db1.search_password('login'), '1q2w3e')
-        del db1
-        os.remove("test.sqlite")
-
-    def test_client(self):
-        pass
-
-
-if __name__ == "__main__":
-    unittest.main()
