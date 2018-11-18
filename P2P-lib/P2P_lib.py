@@ -8,7 +8,7 @@ class Logger:
     Class provides all functionality, that connected with logging.
     """
 
-    def logged(mode: str = "server"):
+    def logged(mode: str = "server", console_only: bool=False):
         """
         Decorator intended to log unhandled exceptions in function.
         It invokes Logger.err_log().
@@ -20,13 +20,13 @@ class Logger:
                 try:
                     return func(*args, **kwargs)
                 except Exception as ex:
-                    Logger.err_log(ex, f"{func.__module__}.{func.__qualname__}()", mode)
+                    Logger.err_log(ex, f"{func.__module__}.{func.__qualname__}()", mode, console_only=console_only)
                     raise ex
             return wrapper
         return _logged
 
     @staticmethod
-    def err_log(message: str, source: str, mode: str="server", file_only: bool=False):
+    def err_log(message: str, source: str, mode: str="server", file_only: bool=False, console_only: bool=False):
         """
         Logging occured exception to console and file.
 
@@ -41,12 +41,13 @@ class Logger:
         str_message = f"[{str_time}] : Unhandled exception in {source}: {message}"
         if not file_only:
             print(str_message)
-        try:
-            log_file = open(f"{mode}.log", "at")
-            log_file.write(str_message + "\n")
-            log_file.close()
-        except Exception as e:   # DEBUG
-            print(e)
+        if not console_only:
+            try:
+                log_file = open(f"{mode}.log", "at")
+                log_file.write(str_message + "\n")
+                log_file.close()
+            except Exception as e:   # DEBUG
+                print(e)
 
     @staticmethod
     def log(message: str, mode: str="server", file_only: bool=False):
@@ -79,24 +80,24 @@ class Extentions:
     """
 
     @staticmethod
-    @Logger.logged()
+    @Logger.logged(console_only=True)
     def int_to_bytes(i: int) -> bytes:
         if i >= 2 ** 32:
             raise ValueError("Integer must be 4-byte or less.")
         return bytes([(i & 0xFF000000) >> 24, (i & 0x00FF0000) >> 16, (i & 0x0000FF00) >> 8, i & 0x000000FF])
 
     @staticmethod
-    @Logger.logged()
+    @Logger.logged(console_only=True)
     def defstr_to_bytes(st: str) -> bytes:
         return Extentions.int_to_bytes(len(st)) + bytes(st, "utf-8")
 
     @staticmethod
-    @Logger.logged()
+    @Logger.logged(console_only=True)
     def bytes_to_int(bts: bytes, start: int=0) -> (int, bytes):
         return bts[start] << 24 | bts[start + 1] << 16 | bts[start + 2] << 8 | bts[start + 3], bts[4:]
 
     @staticmethod
-    @Logger.logged()
+    @Logger.logged(console_only=True)
     def bytes_to_str(bts: bytes, start: int=0, length: int=-1) -> (str, bytes):
         if length == -1:
             return bts[start:].decode(), bytes()
@@ -104,7 +105,7 @@ class Extentions:
             return bts[start:start + length].decode(), bts[start + length]
 
     @staticmethod
-    @Logger.logged()
+    @Logger.logged(console_only=True)
     def bytes_to_defstr(bts: bytes, start: int=0) -> (str, bytes):
         length, _ = Extentions.bytes_to_int(bts, start)
         start += 4

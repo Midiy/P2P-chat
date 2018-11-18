@@ -16,20 +16,20 @@ class TestClientException(Exception):
         return self._message
 
 
-@Logger.logged("P2P_TestClient", "test_client")
+@Logger.logged("test_client")
 def _get_gata(sock: socket) -> (int, bytes):
     length, _ = Extentions.bytes_to_int(sock.recv(4))
     result = sock.recv(length)
     return (result[0], result[1:])
 
 
-@Logger.logged("P2P_TestClient", "test_client")
+@Logger.logged("test_client")
 def _send_data(sock: socket, code: int, data: bytes = bytes()):
     data_to_send = Extentions.int_to_bytes(len(data) + 1) + bytes([code]) + data
     sock.send(data_to_send)
 
 
-@Logger.logged("P2P_TestClient", "test_client")
+@Logger.logged("test_client")
 def main():
     remove("test_client.log")
     sock: socket = socket()

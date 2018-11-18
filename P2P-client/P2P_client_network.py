@@ -149,6 +149,8 @@ class _IConnection:
 
     @Logger.logged("client")
     def __init__(self, host: str, port: int):
+        if (self.__class__ == _IConnection):
+            _IConnection.__raise_not_implemented_error()
         self._host = host
         self._port = port
         self._recreate_connection()
@@ -160,6 +162,8 @@ class _IConnection:
 
     @Logger.logged("client")
     async def _get_data(self, timeout: int=5) -> (int, bytes):
+        if (self.__class__ == _IConnection):
+            __raise_not_implemented_error()
 
         async def _l_get_data(length: int) -> (bytes):
             data = await asyncio.wait_for(self._reader.read(length), timeout=timeout)
@@ -174,18 +178,24 @@ class _IConnection:
 
     @Logger.logged("client")
     async def _send_data(self, code: int, data: bytes=bytes()):
+        if (self.__class__ == _IConnection):
+            __raise_not_implemented_error()
         data_to_send = Extentions.int_to_bytes(len(data) + 1) + bytes([code]) + data
         self._writer.write(data_to_send)
         await self._writer.drain()
 
     @Logger.logged("client")
     async def _check_connection(self, timeout: int=5) -> bool:
+        if (self.__class__ == _IConnection):
+            __raise_not_implemented_error()
         await self._send_data(0)
         code, _ = await self._get_data(timeout)
         return code == 0
 
     @Logger.logged("client")
     def _recreate_connection(self):
+        if (self.__class__ == _IConnection):
+            __raise_not_implemented_error()
         if self._writer is None or self._writer.is_closing() or not self._check_connection(1):
             connection = asyncio.open_connection(self._host, self._port)
             self._reader, self._writer = asyncio.run(connection)
@@ -197,6 +207,11 @@ class _IConnection:
     @staticmethod
     def _raise_customised_exception(message: str):
         raise Exception(message)
+
+    @staticmethod
+    def __raise_not_implemented_error():
+        raise NotImplementedError("'_IConnection' was conceived as abstract." +
+                                  "\nYou mustn't use it directly; instead, inherit from it.")
 
 
 class ClientToServerException(Exception): pass
@@ -322,3 +337,5 @@ class ClientToClient(_IConnection):
     async def get_server_IP(self) -> str:
         return self.get_IPs("server")[0]
     # TODO: Add some interaction with other client
+
+a = _IConnection("", 0)
