@@ -1,5 +1,6 @@
 ﻿# Encoding: utf-8
 
+import socket
 import asyncio
 from P2P_database import DataBaseServer
 from concurrent.futures import TimeoutError
@@ -35,6 +36,8 @@ async def _on_connect(reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     login = None
     client_endpoint = writer.get_extra_info("peername")
     client_ip = client_endpoint[0]
+    if client_ip == "127.0.0.1":
+        client_ip = socket.gethostbyname(socket.gethostname())
     client_port = client_endpoint[1]
     Logger.log(f"Accepted connection from {client_ip}:{client_port}.")
     while True:

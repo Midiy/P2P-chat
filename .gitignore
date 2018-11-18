@@ -263,3 +263,6 @@ __pycache__/
 
 # SQLite
 *.sqlite*
+
+# User-defined
+*_build

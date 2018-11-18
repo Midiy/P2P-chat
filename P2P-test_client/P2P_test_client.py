@@ -33,7 +33,7 @@ def _send_data(sock: socket, code: int, data: bytes = bytes()):
 def main():
     remove("test_client.log")
     sock: socket = socket()
-    sock.connect(("localhost", 3501))
+    sock.connect(("localhost", 3502))
     Logger.log("Connection with localhost:3501 was established.", "test_client")
     _send_data(sock, 0)
     Logger.log("Ping was successfully sent.", "test_client")
@@ -41,6 +41,9 @@ def main():
     if code != 0:
         raise TestClientException("Ping wasn't received!")
     Logger.log("Ping was successfully received.", "test_client")
+
+    return
+
     for i in range(0, 5):
         bts_login = Extentions.defstr_to_bytes(f"TestUser{i}")
         bts_password = Extentions.defstr_to_bytes(f"{i + 1}{i}{ (i - 1) * 2}")

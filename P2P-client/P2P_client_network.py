@@ -15,16 +15,17 @@ class Listener:
 
     login: str = None
     on_receive_msg_callback = None
+    upgrade_ip_callback = None
 
     @Logger.logged("client")
-    def __init__(self, login: str, on_receive_msg_callback, server_endpoint: str,
-                 database: DataBaseClient, listen: bool=True, port: int=3502):
+    def __init__(self, login: str, on_receive_msg_callback, 
+                 upgrade_ip_callback, server_endpoint: str,
+                 database: DataBaseClient, port: int=3502):
         self.login = login
         self.on_receive_msg_callback = on_receive_msg_callback
+        self.upgrade_ip_callback = upgrade_ip_callback
         self._server_endpoint = server_endpoint
         self._database = database
-        if listen:
-            self.listen(3502)
         
     @staticmethod
     @Logger.logged("client")
@@ -37,14 +38,14 @@ class Listener:
             else:
                 raise ConnectionAbortedError()
 
-        length, _ = Extentions._bytes_to_int(await _l_get_data(4))
+        length, _ = Extentions.bytes_to_int(await _l_get_data(4))
         result = await _l_get_data(length)
         return (result[0], result[1:])
 
     @staticmethod
     @Logger.logged("client")
     async def _send_data(writer: asyncio.StreamWriter, code: int, data: bytes=bytes()):
-        data_to_send = Extentions._int_to_bytes(len(data) + 1) + bytes([code]) + data
+        data_to_send = Extentions.int_to_bytes(len(data) + 1) + bytes([code]) + data
         writer.write(data_to_send)
         await writer.drain()
 
@@ -59,17 +60,18 @@ class Listener:
             Logger.log(f"Accepted connection from {client_ip}:{client_port}.", "client")
             while True:
                 try:
-                    code, data = await _get_data(reader, timeout)
+                    code, data = await self._get_data(reader, timeout)
                     if code == 0:   # Ping
-                        await _send_data(writer, 0)
+                        await self._send_data(writer, 0)
                         Logger.log(f"Ping was sent to {client_ip}:{client_port}.", "client")
                     elif code == 2:   # Login
                         received_login, _ = Extentions.bytes_to_defstr(data)
                         if received_login == "server":
-                            await _send_data(writer, 252, Extentions.defstr_to_bytes("'server' is service login!"))
+                            await self._send_data(writer, 252, Extentions.defstr_to_bytes("'server' is service login!"))
                             continue
                         client_login = received_login
-                        await _send_data(writer, 2, Extentions.defstr_to_bytes(login))
+                        self.upgrade_ip_callback(client_login, client_ip)
+                        await self._send_data(writer, 2, Extentions.defstr_to_bytes(login))
                         timeout = 60
                         Logger.log(f"Login {client_ip}:{client_port} as '{client_login}' was confirmed.")
                     elif code == 3:   # IP updating request
@@ -87,17 +89,17 @@ class Listener:
                     elif code == 5:   # Text message
                         if client_login is not None and client_login != "guest":
                             self.on_receive_msg_callback(data, client_login, client_endpoint)
-                            await _send_data(5)
+                            await self._send_data(5)
                             Logger.log(f"Message from '{client_login}' ({client_ip}:{client_port}) was recieved.")
                         else:
-                            await _send_data(writer, 253, Extentions.defstr_to_bytes("You should login first."))
+                            await self._send_data(writer, 253, Extentions.defstr_to_bytes("You should login first."))
                     elif code == 6:   # File message
 
                         # TODO: Add handling file messages
                         pass
 
                     else:
-                        msg, _ = Extentions._bytes_to_str(Extentions._int_to_bytes(code) + data)
+                        msg, _ = Extentions.bytes_to_str(Extentions.int_to_bytes(code) + data)
                         Logger.log(f"Following message was resieved from {client_ip}:{client_port}:\n{msg}", "client")
                 except ConnectionAbortedError:
                     Logger.log(f"Connection from {client_ip}:{client_port} closed by peer.", "client")
@@ -109,35 +111,16 @@ class Listener:
         return _on_connect
 
     @Logger.logged("client")
-    def listen(self, port: int = 3502):
-        Logger.log("", "client", file_only=True)
-        self._loop = asyncio.get_event_loop()
-        server_gen = asyncio.start_server(self._on_connect_wrapper(), host="0.0.0.0", port=port)
-        self._server = self._loop.run_until_complete(server_gen)
-        # It seems like KeyboardInterrupt handled somewhere in
-        # server() coroutine, then I have to add following 4 lines.
-
-        async def _wait_for_interrupt():
-            while True:
-                await asyncio.sleep(1)
-
-        self._loop.create_task(_wait_for_interrupt())
+    async def listen(self, port: int = 3502):
+        self._server = await asyncio.start_server(self._on_connect_wrapper(), host="0.0.0.0", port=port)
+        await self._server.start_serving()
         _server_endpoint = self._server.sockets[0].getsockname()
         Logger.log(f"Listening established on {_server_endpoint[0]}:{_server_endpoint[1]}.", "client")
-        try:
-            self._loop.run_forever()
-        except KeyboardInterrupt:
-            Logger.log("Server was stopped by keyboard interrupt.", "client")
-        finally:
-            self._server.close()
-            self._loop.close()
 
     @Logger.logged("client")
     def __del__(self):
         if self._server is not None:
             self._server.close()
-        if self._loop is not None:
-            self._loop.close()
 
 
 class _IConnection:
@@ -153,7 +136,8 @@ class _IConnection:
             _IConnection.__raise_not_implemented_error()
         self._host = host
         self._port = port
-        self._recreate_connection()
+        # loop = asyncio.get_event_loop()
+        # loop.create_task(self._recreate_connection())
 
     @Logger.logged("client")
     def __del__(self):
@@ -193,13 +177,13 @@ class _IConnection:
         return code == 0
 
     @Logger.logged("client")
-    def _recreate_connection(self):
+    async def _recreate_connection(self):
         if (self.__class__ == _IConnection):
             __raise_not_implemented_error()
-        if self._writer is None or self._writer.is_closing() or not self._check_connection(1):
+        if self._writer is None or self._writer.is_closing() or not await self._check_connection(1):
             connection = asyncio.open_connection(self._host, self._port)
-            self._reader, self._writer = asyncio.run(connection)
-            if self._check_connection(1):
+            self._reader, self._writer = await connection
+            if await self._check_connection(1):
                 Logger.log(f"Connection with ({self._host}:{self._port}) was established.", "client")
                 return
         _raise_customised_exception("Couldn't (re)create connection with ({self._host}:{self._port}).")
@@ -229,18 +213,18 @@ class ClientToServer(_IConnection):
 
     @Logger.logged("client")
     async def registration(self, login: str, password: str):
-        self._recreate_connection()
+        await self._recreate_connection()
         bts_login = Extentions.defstr_to_bytes(login)
         bts_password = Extentions.defstr_to_bytes(password)
         await self._send_data(1, bts_login + bts_password)
         code, data = await self._get_data()
         if code != 1:
-            _raise_customised_exception(Extentions.bytes_to_defstr(data)[0])
+            self._raise_customised_exception(Extentions.bytes_to_defstr(data)[0])
         Logger.log(f"User '{login}' was successfully registered.", "client")
 
     @Logger.logged("client")
     async def login(self, login: str, password: str):
-        self._recreate_connection()
+        await self._recreate_connection()
         bts_login = Extentions.defstr_to_bytes(login)
         bts_password = Extentions.defstr_to_bytes(password)
         await self._send_data(2, bts_login + bts_password)
@@ -251,7 +235,7 @@ class ClientToServer(_IConnection):
 
     @Logger.logged("client")
     async def get_IPs(self, logins: list) -> list:
-        self._recreate_connection()
+        await self._recreate_connection()
         data = Extentions.int_to_bytes(len(logins))
         for i in range(0, len(logins)):
             data += Extentions.defstr_to_bytes(logins[i])
@@ -270,7 +254,7 @@ class ClientToServer(_IConnection):
 
     @Logger.logged("client")
     async def delete_user(self, login: str, password: str):
-        self._recreate_connection()
+        await self._recreate_connection()
         bts_login = Extentions.defstr_to_bytes(login)
         bts_password = Extentions.defstr_to_bytes(password)
         await self._send_data(4, bts_login + bts_password)
@@ -295,10 +279,10 @@ class ClientToClient(_IConnection):
         super().__init__(host, port)
 
     @Logger.logged("client")
-    def _recreate_connection(self):
-        if super()._recreate_connection():
-            self._send_data(2, Extentions.defstr_to_bytes(login))
-            code, data = self._get_data()
+    async def _recreate_connection(self):
+        if await super()._recreate_connection():
+            await self._send_data(2, Extentions.defstr_to_bytes(login))
+            code, data = await self._get_data()
             if code == 2 and Extentions.bytes_to_defstr(code)[0] == client_login:
                 Logger.log(f"Connection with '{self.client_login}' ({self._host}:{self._port}) was established.", "client")
                 return
@@ -310,7 +294,7 @@ class ClientToClient(_IConnection):
 
     @Logger.logged("client")
     async def send_text_message(self, message: str):
-        self._recreate_connection()
+        await self._recreate_connection()
         await self._send_data(5, Extentions.defstr_to_bytes(message))
         code, data = await self._get_data()
         if code != 5:
@@ -319,7 +303,7 @@ class ClientToClient(_IConnection):
 
     @Logger.logged("client")
     async def get_IPs(self, logins: list) -> list:
-        self._recreate_connection()
+        await self._recreate_connection()
         data_to_send = Extentions.int_to_bytes(len(logins))
         for login in logins:
             data_to_send += Extentions.defstr_to_bytes(login)
@@ -335,7 +319,5 @@ class ClientToClient(_IConnection):
 
     @Logger.logged("client")
     async def get_server_IP(self) -> str:
-        return self.get_IPs("server")[0]
+        return self.get_IPs(["server"])[0]
     # TODO: Add some interaction with other client
-
-a = _IConnection("", 0)

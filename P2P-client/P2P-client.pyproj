@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>fa4b4d44-b613-4f4d-849d-e6c8d2414150</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>P2P_client_network.py</StartupFile>
+    <StartupFile>P2P_temp_client.py</StartupFile>
     <SearchPath>..\P2P-lib</SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
@@ -24,6 +24,7 @@
     <Compile Include="P2P_client_network.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="P2P_temp_client.py" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\P2P-lib\P2P-lib.pyproj">
