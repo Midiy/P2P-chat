@@ -71,25 +71,15 @@ class DataBaseServer:
             return '-'
         return str(result[0])
 
-    # 2.3.
-    def search_ip(self, login: str) -> str:
+    # 2.3 + 3.3
+    def search_ip_and_last_time(self, login: str) -> (str, datetime):
         cur = self._db_conn.cursor()
-        cur.execute("SELECT ip FROM clients WHERE login = ? ;", (login,))
-        result = cur.fetchone()
+        cur.execute("SELECT ip, last_time FROM clients WHERE login = ? ;", (login, ))
+        result = cur.fetchall()
         cur.close()
         if result is None:
-            return '0.0.0.0'
-        return result[0]
-
-    # 3.3.
-    def search_last_time(self, login: str) -> datetime:
-        cur = self._db_conn.cursor()
-        cur.execute("SELECT last_time FROM clients WHERE login = ? ;", (login,))
-        result = cur.fetchone()
-        cur.close()
-        if result is None:
-            return datetime(MINYEAR, 1, 1)
-        return datetime.strptime(result[0], '%Y-%m-%d %H:%M:%S.%f')
+            return []
+        return result[0][0], datetime.strptime(result[0][1], '%Y-%m-%d %H:%M:%S.%f')
 
 
 class DataBaseClient:
