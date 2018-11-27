@@ -3,7 +3,7 @@
 import P2P_client_network as network
 from datetime import datetime
 from P2P_database import DataBaseClient
-from P2P_lib import Logger
+from P2P_lib import Logger, Extentions
 from typing import Callable, Any, List
 
 
@@ -67,7 +67,7 @@ class Client:
 
 
     login: str = None
-    on_receive_callback: Callable[[bytes, str, str], Any] = None
+    on_receive_callback: Callable[[bytes, str, str], None] = None
     
     _password: str = None
     _database: DataBaseClient = None
@@ -77,7 +77,7 @@ class Client:
 
     @Logger.logged("client")
     async def __init__(self, login: str, password: str,
-                       on_receive_callback: Callable[[bytes, str, str], Any],
+                       on_receive_callback: Callable[[str, str, str], None],
                        need_registration: bool=False):
         self.login = login
         self._password = password
@@ -108,8 +108,13 @@ class Client:
             self._contacts[c] = _Contact(c, self._login)
         
         # TODO: Add P2P-upgrading contacts IP
+
+        def _on_receive_callback(data: bytes, contact_login: str, contact_endpoint: str):
+            message = Extentions.bytes_to_defstr(data)[0]
+            contacts[contact_login, contact_endpoint].add_text_message(message)
+            self.on_receive_callback(message, contact_login, contact_endpoint)
         
-        self._listener = network.Listener(login, self.on_receive_callback,
+        self._listener = network.Listener(login, _on_receive_callback,
                                     lambda name, ip: self._contacts[name, ip].upgrade_ip(ip),
                                     server_endpoint, self._database)
         await self._listener.listen()
@@ -119,16 +124,16 @@ class Client:
 
     async def send_message(self, name: str, message: str):
         if not name in self._contacts:
-                    current_contact = self._contacts[name, await self._get_ip_by_name(name)]
-                else:
-                    current_contact = self._contacts[name]
+            current_contact = self._contacts[name, await self._get_ip_by_name(name)]
+        else:
+            current_contact = self._contacts[name]
         await current_contact.send_text_message(message)
 
     async def get_history(self, name: str) -> str:
         if not name in self._contacts:
-                    current_contact = self._contacts[name, await self._get_ip_by_name(name)]
-                else:
-                    current_contact = self._contacts[name]
+            current_contact = self._contacts[name, await self._get_ip_by_name(name)]
+        else:
+            current_contact = self._contacts[name]
         return current_contact.get_history()
 
     def get_contacts_list(self) -> List[str]:
