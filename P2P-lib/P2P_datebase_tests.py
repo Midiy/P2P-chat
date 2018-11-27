@@ -24,18 +24,21 @@ class P2PDataBaseTest(unittest.TestCase):
         self.assertFalse(db.update_password('login333', '6t7y8u'))
         self.assertEqual(db.search_password('login'), '1q2w3e')
 
-        self.assertEqual(db.search_ip('login'), '222.222.222.222')
-        self.assertEqual(db.search_ip('login2'), '111.111.111.111')
         self.assertTrue(db.update_ip('login', '123.123.123.123'))
-        self.assertFalse(db.update_ip('login333', '121.121.121.121'))
-        self.assertEqual(db.search_ip('login'), '123.123.123.123')
 
         time2 = datetime.now()
-        self.assertTrue(time1 <= db.search_last_time('login'))
-        self.assertTrue(db.search_last_time('login') <= time2)
-        self.assertTrue(time1 <= db.search_last_time('login2'))
-        self.assertTrue(db.search_last_time('login2') <= time2)
-        self.assertEqual(db.search_last_time('login333'), datetime(MINYEAR, 1, 1))
+        lst_1 = db.search_ip_and_last_time('login')
+        self.assertEqual(lst_1[0], '123.123.123.123')
+        self.assertTrue(lst_1[1] <= time2)
+        self.assertTrue(time1 <= lst_1[1])
+
+        self.assertTrue(db.update_ip('login', '133.133.133.133'))
+        time2 = datetime.now()
+
+        lst_1 = db.search_ip_and_last_time('login')
+        self.assertEqual(lst_1[0], '133.133.133.133')
+        self.assertTrue(lst_1[1] <= time2)
+        self.assertTrue(time1 <= lst_1[1])
 
         del db
         db1 = DataBaseServer("test.sqlite")
