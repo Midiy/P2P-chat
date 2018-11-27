@@ -25,6 +25,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="P2P_temp_client.py" />
+    <Compile Include="P2P_Window.py" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\P2P-lib\P2P-lib.pyproj">

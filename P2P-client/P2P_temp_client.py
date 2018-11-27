@@ -5,6 +5,7 @@ import P2P_client_network as network
 from datetime import datetime
 from P2P_database import DataBaseClient
 from P2P_lib import Logger, Extentions
+from typing import Callable
 from os import system
 
 
@@ -13,7 +14,7 @@ class Contact:
     database: DataBaseClient = None
 
     connection: network._IConnection = None
-    
+
     _name: str = None
     _ip: str = None
     _history: str = None
@@ -37,7 +38,7 @@ class Contact:
 
     async def send_text_message(self, message: str):
         await self.connection.send_text_message(message)
-        self.add_text_message(f"[{datetime.now().strftime('%d.%m.%Y %T')} {login}]: {line}")
+        self.add_text_message(f"[{datetime.now().strftime('%d.%m.%Y %T')} {self._login}]: {message}")
 
     def upgrade_ip(self, new_ip: str):
         Contact.database.update_ip(self._name, new_ip)
@@ -45,20 +46,20 @@ class Contact:
 
 
 class Contact_dict(dict):
-    
-    _create_new_contact_callback = None
 
-    def __init__(self, create_new_contact):
+    _create_new_contact_callback: Callable[[str, str], Contact] = None
+
+    def __init__(self, create_new_contact: Callable[[str, str], Contact]):
         self._create_new_contact_callback = create_new_contact
         return super().__init__()
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: (str, str)) -> Contact:
         if type(key) == tuple:
             ip = key[1]
             key = key[0]
         else:
             ip = None
-        if not key in self.keys():
+        if key not in self.keys():
             self[key] = self._create_new_contact_callback(key, ip)
         return super().__getitem__(key)
 
@@ -68,7 +69,7 @@ def get_command(line: str) -> (str, str):
     i = 1
     while line[i] != " ":
         i += 1
-    j == i + 1
+    j = i + 1
     while line[i] == " ":
         i += 1
     return (line[:j], line[i:])
@@ -77,6 +78,7 @@ def get_command(line: str) -> (str, str):
 @Logger.logged("client")
 async def get_ip_by_name(server: network.ClientToServer, name: str) -> str:   # DEBUG
     return await server.get_IPs([name])[0]   # DEBUG
+
 
 @Logger.logged("client")
 async def main():
@@ -98,22 +100,22 @@ async def main():
         await server.registration(login, password)
     else:
         await server.login(login, password)
-    
+
     @Logger.logged("client")
-    def _add_new_contact(name: str, ip: str):
+    def _add_new_contact(name: str, ip: str) -> Contact:
         database.add_friend(name, ip)
         return Contact(name, login)
-    
+
     contacts = Contact_dict(_add_new_contact)
     contacts_names = database.get_all_friends()
     for c in contacts_names:
         database.update_ip(c, server.get_IPs([c])[0])   # REDO: Check if server has newer IP than this client.
         contacts[c] = Contact(c, login)
-    
+
     # TODO: Add P2P-upgrading contacts IP
-    
+
     current_contact = None
-    
+
     @Logger.logged("client")
     def _on_receive(data: bytes, contact_login: str, contact_ip: str):
         msg_datetime = datetime.now().strftime("%d.%m.%Y %T")
@@ -123,7 +125,7 @@ async def main():
         else:
             print(f"\nNew message from {contact_login}!\n")
         contacts[contact_login].add_text_message(message)
-    
+
     listener = network.Listener(login, _on_receive,
                                 lambda name, ip: contacts[name, ip].upgrade_ip(ip),
                                 server_endpoint, database)
@@ -143,13 +145,13 @@ async def main():
             command, arg = get_command(line)
             if command == "$gotodialog":
                 system("cls")   # REDO: Add supporting not only Windows.
-                if not arg in contacts:
+                if arg not in contacts:
                     current_contact = contacts[arg, await get_ip_by_name(server, arg)]
                 else:
                     current_contact = contacts[arg]
-                print_history(arg)
+                # print_history(arg)
             else:
-                pass # TODO: Add some other cases.
+                pass   # TODO: Add some other cases.
 
 
 asyncio.run(main())
