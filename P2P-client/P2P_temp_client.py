@@ -52,9 +52,14 @@ class Contact_dict(dict):
         self._create_new_contact_callback = create_new_contact
         return super().__init__()
 
-    def __getitem__(self, key, ip):
-        if not key in self.keys:
-            self[key] = self._create_new_contact_callback(kdict_keys, ip)
+    def __getitem__(self, key):
+        if type(key) == tuple:
+            ip = key[1]
+            key = key[0]
+        else:
+            ip = None
+        if not key in self.keys():
+            self[key] = self._create_new_contact_callback(key, ip)
         return super().__getitem__(key)
 
 
@@ -132,7 +137,7 @@ async def main():
             if current_contact is None:
                 print("You should use '$gotodialog <username>' first")
             else:
-                current_contact.send_text_message(line)
+                await current_contact.send_text_message(line)
                 print(f"[{datetime.now().strftime('%d.%m.%Y %T')} {login}]: {line}")
         else:
             command, arg = get_command(line)

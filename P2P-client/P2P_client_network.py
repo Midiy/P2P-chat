@@ -82,7 +82,8 @@ class Listener:
                             if requested_login == "server":
                                 ips += Extentions.defstr_to_bytes(_server_endpoint)
                             else:
-                                ips += Extentions.defstr_to_bytes(_database.search_ip(requested_login))
+                                ips += Extentions.defstr_to_bytes(_database.search_ip(requested_login))   
+                                # REDO: Take into account Marina's changes in P2P_database.DataBaseClient
                             login_count -= 1
                         await self._send_data(writer, 3, ips)
                         Logger.log(f"Requested IPs was sent to {client_ip}:{client_port}.")
