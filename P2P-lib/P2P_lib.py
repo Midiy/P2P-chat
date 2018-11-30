@@ -1,6 +1,9 @@
 # Encoding: utf-8
 
 from time import asctime
+import igd
+from curio import run
+from typing import Callable, Any
 
 
 class Logger:
@@ -8,15 +11,15 @@ class Logger:
     Class provides all functionality, that connected with logging.
     """
 
-    def logged(mode: str = "server", console_only: bool=False):
+    def logged(mode: str = "server", console_only: bool=False) -> Callable[[Callable], Callable]:
         """
         Decorator intended to log unhandled exceptions in function.
         It invokes Logger.err_log().
 
         location - Path to decorated function (<module>.<class>.<etc>).
         """
-        def _logged(func, *args, **kwargs):
-            def wrapper(*args, **kwargs):
+        def _logged(func, *args, **kwargs) -> Callable[[Any], Callable]:
+            def wrapper(*args, **kwargs) -> Callable[[Any], Any]:
                 try:
                     return func(*args, **kwargs)
                 except Exception as ex:
@@ -110,3 +113,50 @@ class Extentions:
         length, _ = Extentions.bytes_to_int(bts, start)
         start += 4
         return bts[start:start + length].decode(), bts[:start - 4] + bts[start + length:]
+
+
+class UPnP:
+
+    class UPnPException(Exception):
+        pass
+
+    port: int = None
+    is_opened: bool = None
+    external_ip: int = None
+
+    _exact: bool = None
+    _gateway: igd.Gateway = None
+    _internal_port: int = None
+
+    def __init__(self, port: int=3501, is_port_exact: bool=True):
+        self.port = port
+        self._internal_port = port
+        self.is_opened = False
+        self._exact = is_port_exact
+        self._gateway = run(igd.find_gateway())
+        if self._gateway is None:
+            raise UPnP.UPnPException(f"There are no any UPnP-supporting devices!")
+        self.external_ip = run(self._gateway.get_ext_ip())
+
+    def open_port(self, description: str=""):
+        if self.is_opened:
+            raise UPnP.UPnPException(f"Port {self.port} has already been opened!")
+        port_mappings = run(self._gateway.get_port_mappings())
+        opened_ports = set([i.external_port for i in port_mappings])
+        while not opened_ports.isdisjoint((self.port)):
+            if self._exact:
+                raise UPnP.UPnPException(f"Port {self.port} has been already opened by other program!")
+            self.port += 1
+        new_mapping = igd.proto.PortMapping('', self.popen_port, self._internal_port, 'TCP', None, True, description, -1)
+        self._gateway.add_port_mapping(new_mapping)
+        self.is_opened = True
+
+    def close_port(self):
+        if not self.is_opened:
+            raise UPnP.UPnPException(f"Port {self.port} hasn't been opened yet!")
+        port_mappings = run(self._gateway.get_port_mappings())
+        opened_ports = set([i.external_port for i in port_mappings])
+        if not opened_ports.isdisjoint((self.port)):
+            raise UPnP.UPnPException(f"Port {self.port} wasn't found in list of port mappings.")
+        self._gateway.delete_port_mapping(self.port, "TCP")
+        self.is_opened = False

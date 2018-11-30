@@ -52,13 +52,17 @@ async def _on_connect(reader: asyncio.StreamReader, writer: asyncio.StreamWriter
                     await _send_data(writer, 252, Extentions.defstr_to_bytes("'server' is service login!"))
                     continue
                 login = received_login
-                pass_hash, _ = Extentions.bytes_to_defstr(data)
+                pass_hash, data = Extentions.bytes_to_defstr(data)
+                if data == bytes():
+                    preferred_port = "3502"
+                else:
+                    preferred_port, _ = Extentions.bytes_to_defstr(data)
                 Logger.log(f"Registration {client_ip}:{client_port} as '{login}'...")
                 if (_database.search_ip(login) != "0.0.0.0"):
                     await _send_data(writer, 254, Extentions.defstr_to_bytes("This login is already registered."))
                     Logger.log(f"Registration {client_ip}:{client_port} as '{login}' was refused.")
                     continue
-                _database.add_client(login, pass_hash, client_ip)
+                _database.add_client(login, pass_hash, client_ip + ":" + preferred_port)
                 pass_hash = None
                 await _send_data(writer, 1)
                 Logger.log(f"Registration {client_ip}:{client_port} as '{login}' was confirmed.")
@@ -69,7 +73,11 @@ async def _on_connect(reader: asyncio.StreamReader, writer: asyncio.StreamWriter
                     await _send_data(writer, 252, Extentions.defstr_to_bytes("'server' is service login!"))
                     continue
                 login = received_login
-                pass_hash, _ = Extentions.bytes_to_defstr(data)
+                pass_hash, data = Extentions.bytes_to_defstr(data)
+                if data == bytes():
+                    preferred_port = "3502"
+                else:
+                    preferred_port, _ = Extentions.bytes_to_defstr(data)
                 Logger.log(f"Login {client_ip}:{client_port} as '{login}'...")
                 if (_database.search_password(login) != pass_hash):
                     await _send_data(writer, 255, Extentions.defstr_to_bytes("Password is incorrect."))
@@ -79,7 +87,7 @@ async def _on_connect(reader: asyncio.StreamReader, writer: asyncio.StreamWriter
                 await _send_data(writer, 2)
                 Logger.log(f"Login {client_ip}:{client_port} as '{login}' was confirmed.")
                 timeout = 60
-                _database.update_ip(login, client_ip)
+                _database.update_ip(login, client_ip + ":" + preferred_port)
             elif code == 3:   # IP updating request
                 Logger.log(f"IPs was requested by {client_ip}:{client_port}")
                 login_count, data = Extentions.bytes_to_int(data)
@@ -87,6 +95,7 @@ async def _on_connect(reader: asyncio.StreamReader, writer: asyncio.StreamWriter
                 while login_count > 0:
                     requested_login, data = Extentions.bytes_to_defstr(data)
                     ips += Extentions.defstr_to_bytes(_database.search_ip(requested_login))
+                    # REDO: Take into account Marina's changes in P2P_database.DataBaseClient
                     login_count -= 1
                 await _send_data(writer, 3, ips)
                 Logger.log(f"Requested IPs was sent to {client_ip}:{client_port}.")
