@@ -11,7 +11,7 @@ class Listener:
 
     _server: asyncio.AbstractServer = None
     _loop: asyncio.AbstractEventLoop = None
-    _server_endpoint: str = None
+    _server_endpoint: str = None   # TODO: Is it really necessary? Shouldn't we just find "server" in DB?
     _database: DataBaseClient = None
 
     login: str = None
@@ -68,12 +68,16 @@ class Listener:
                         await self._send_data(writer, 0)
                         Logger.log(f"Ping was sent to {client_ip}:{client_port}.", "client")
                     elif code == 2:   # Login
-                        received_login, _ = Extentions.bytes_to_defstr(data)
+                        received_login, data = Extentions.bytes_to_defstr(data)
+                        if data == bytes():
+                            preferred_port = "3502"
+                        else:
+                            preferred_port, _ = Extentions.bytes_to_defstr(data)
                         if received_login == "server":
                             await self._send_data(writer, 252, Extentions.defstr_to_bytes("'server' is service login!"))
                             continue
                         client_login = received_login
-                        self.upgrade_ip_callback(client_login, client_ip)
+                        self.upgrade_ip_callback(client_login, client_ip + ":" + preferred_port)
                         await self._send_data(writer, 2, Extentions.defstr_to_bytes(self.login))
                         timeout = 60
                         Logger.log(f"Login {client_ip}:{client_port} as '{client_login}' was confirmed.")
@@ -92,7 +96,7 @@ class Listener:
                         Logger.log(f"Requested IPs was sent to {client_ip}:{client_port}.")
                     elif code == 5:   # Text message
                         if client_login is not None and client_login != "guest":
-                            self.on_receive_msg_callback(data, client_login, client_endpoint)
+                            self.on_receive_msg_callback(data, client_login, client_ip + ":" + preferred_port)
                             await self._send_data(5)
                             Logger.log(f"Message from '{client_login}' ({client_ip}:{client_port}) was recieved.")
                         else:
@@ -118,8 +122,8 @@ class Listener:
     async def listen(self, port: int = 3502):
         self._server = await asyncio.start_server(self._on_connect_wrapper(), host="0.0.0.0", port=port)
         await self._server.start_serving()
-        _server_endpoint = self._server.sockets[0].getsockname()
-        Logger.log(f"Listening established on {_server_endpoint[0]}:{_server_endpoint[1]}.", "client")
+        _endpoint = self._server.sockets[0].getsockname()
+        Logger.log(f"Listening established on {_endpoint[0]}:{_endpoint[1]}.", "client")
 
     @Logger.logged("client")
     def __del__(self):
@@ -138,8 +142,13 @@ class _IConnection:
     def __init__(self, host: str, port: int):
         if (self.__class__ == _IConnection):
             _IConnection.__raise_not_implemented_error()
-        self._host = host
-        self._port = port
+        i = host.find(":")
+        if i != -1:
+            self._port = int(host[i + 1:])
+            self._host = host[:i - 1]
+        else:
+            self._host = host
+            self._port = port
         # loop = asyncio.get_event_loop()
         # loop.create_task(self._recreate_connection())
 

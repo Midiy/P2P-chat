@@ -16,6 +16,7 @@ class Client:
 
         _name: str = None
         _ip: str = None
+        _last_upgrade: datetime = None
         _history: str = None
         _login: str = None
 
@@ -24,12 +25,12 @@ class Client:
                 raise Exception("You shold initialise Contact.database first!")
             self._name = name
             self._login = login
-            self._ip = Client._Contact.database.search_ip(name)
+            self._ip, self._last_upgrade = Client._Contact.database.search_ip_and_last_time(name)
             history = Client._Contact.database.search_messages(name)
             for time, type, text in history:
                 if type:
                     self._history += text + "\n"
-            self._connection = network.ClientToClient(login, name, self._endpoint)
+            self._connection = network.ClientToClient(login, name, self._ip)
 
         def add_text_message(self, message: str):
             Client._Contact.database.add_message(self._name, datetime.now(), True, message)
@@ -39,29 +40,36 @@ class Client:
             await self.connection.send_text_message(message)
             self.add_text_message(f"[{datetime.now().strftime('%d.%m.%Y %T')} {self._login}]: {message}")
 
-        def upgrade_ip(self, new_ip: str):
+        def upgrade_ip(self, new_ip: str) -> bool:
+            if upgrade_time <= self._last_upgrade:
+                return False
             Client._Contact.database.update_ip(self._name, new_ip)
             self._ip = new_ip
+            self._last_upgrade = upgrade_time
+            self._connection = network.ClientToClient(self._login, self._name, self._ip)
+            return True
 
         def get_history(self):
             return self._history
 
     class _Contact_dict(dict):
 
-        _create_new_contact_callback: Callable = None
+        _create_new_contact_callback: Callable[[str, str, datetime], Client._Contact] = None
 
-        def __init__(self, create_new_contact: Callable):
+        def __init__(self, create_new_contact: Callable[[str, str, datetime], Client._Contact]):
             self._create_new_contact_callback = create_new_contact
             return super().__init__()
 
         def __getitem__(self, key):
             if type(key) == tuple:
                 ip = key[1]
+                upgrade_time = key[2]
                 key = key[0]
             else:
                 ip = None
+                upgrade_time = None
             if key not in self.keys():
-                self[key] = self._create_new_contact_callback(key, ip)
+                self[key] = self._create_new_contact_callback(key, ip, upgrade_time)
             return super().__getitem__(key)
 
     login: str = None
@@ -93,43 +101,47 @@ class Client:
             await self._server.login(self.login, self.password)
 
         @Logger.logged("client")
-        def _add_new_contact(self):
-            def _add_new_contact_wrapped(name: str, ip: str):
-                self._database.add_friend(name, ip)
-                return Client._Contact(name, self._login)
-            return _add_new_contact_wrapped
+        def _add_new_contact(name: str, ip: str, upgrade_time: datetime) -> Client._Contact:
+            self._database.add_friend(name, ip)
+            return Client._Contact(name, self._login, upgrade_time)
 
-        self._contacts = Client._Contact_dict(_add_new_contact(self))
+        self._contacts = Client._Contact_dict(_add_new_contact)
         contacts_names = self._database.get_all_friends()
-        for c in contacts_names:
-            self._database.update_ip(c, self._server.get_IPs([c])[0])   # REDO: Check if server has newer IP than this client.
-            self._contacts[c] = Client._Contact(c, self._login)
+        contacts_ips = await self._get_ips_by_names(contacts_names)
+        for n in contacts_names, i in contacts_ips:
+            self._contacts[c] = Client._Contact(c, self.login)
+            self._contacts[c].upgrade_ip(*i)
 
         # TODO: Add P2P-upgrading contacts IP
 
         def _on_receive_callback(data: bytes, contact_login: str, contact_endpoint: str):
             message = Extentions.bytes_to_defstr(data)[0]
-            self.contacts[contact_login, contact_endpoint].add_text_message(message)
+            self.contacts[contact_login, contact_endpoint, datetime.now()].add_text_message(message)
             self.on_receive_callback(message, contact_login, contact_endpoint)
 
-        self._listener = network.Listener(login, _on_receive_callback,
-                                          lambda name, ip: self._contacts[name, ip].upgrade_ip(ip),
+        def _upgrade_ip(name: str, ip: str):
+            time = datetime.now()
+            self._contacts[name, ip, time].upgrade_ip(ip, time)
+
+        self._listener = network.Listener(login, _on_receive_callback, _upgrade_ip,
                                           server_endpoint, self._database)
         await self._listener.listen()
 
-    async def _get_ip_by_name(self, name: str) -> str:
-        return await self._server.get_IPs([name])[0]   # DEBUG
+    async def _get_ips_by_names(self, names: List[str]) -> List[(str, datetime)]:
+        return await self._server.get_IPs(names)   # DEBUG
 
     async def send_message(self, name: str, message: str):
         if name not in self._contacts:
-            current_contact = self._contacts[name, await self._get_ip_by_name(name)]
+            ip, time = await self._get_ips_by_names([name])[0]
+            current_contact = self._contacts[name, ip, time]
         else:
             current_contact = self._contacts[name]
         await current_contact.send_text_message(message)
 
     async def get_history(self, name: str) -> str:
         if name not in self._contacts:
-            current_contact = self._contacts[name, await self._get_ip_by_name(name)]
+            ip, time = await self._get_ips_by_names([name])[0]
+            current_contact = self._contacts[name, ip, time]        
         else:
             current_contact = self._contacts[name]
         return current_contact.get_history()
