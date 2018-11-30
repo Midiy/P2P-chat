@@ -141,9 +141,9 @@ class DataBaseClient:
             result += i
         return result
 
-    def update_ip(self, login: str, ip: str) -> bool:
+    def update_ip(self, login: str, ip: str, d_time=datetime.now()) -> bool:
         cur = self._db_conn.cursor()
-        cur.execute("UPDATE friends SET ip = ?, last_time = ? WHERE friend = ? ;", (ip, datetime.now(), login))
+        cur.execute("UPDATE friends SET ip = ?, last_time = ? WHERE friend = ? ;", (ip, d_time, login))
         _status = cur.rowcount == 1
         cur.close()
         self._db_conn.commit()
