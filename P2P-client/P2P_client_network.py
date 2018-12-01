@@ -91,8 +91,8 @@ class Listener:
                             else:
                                 requested_ip, requested_time = self._database.search_ip_and_last_time(requested_login)
                                 requested_time = requested_time.strftime("%T %d.%m.%Y")
-                                requested_line = Extentions.defstr_to_bytes(requested_ip) +
-                                               + Extentions.defstr_to_bytes(requested_time)
+                                requested_line = (Extentions.defstr_to_bytes(requested_ip) +
+                                                  + Extentions.defstr_to_bytes(requested_time))
                                 ips += requested_line
                             login_count -= 1
                         await self._send_data(writer, 3, ips)
