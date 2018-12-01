@@ -23,7 +23,7 @@ class Contact:
 
     def __init__(self, name: str, login: str):
         if Contact.database is None:
-            raise Exception("You shold initialise Contact.database first!")
+            raise Exception("You should initialise Contact.database first!")
         self._name = name
         self._login = login
         self._ip, self._last_upgrade = Contact.database.search_ip_and_last_time(name)

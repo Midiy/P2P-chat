@@ -58,7 +58,7 @@ async def _on_connect(reader: asyncio.StreamReader, writer: asyncio.StreamWriter
                 else:
                     preferred_port, _ = Extentions.bytes_to_defstr(data)
                 Logger.log(f"Registration {client_ip}:{client_port} as '{login}'...")
-                if (_database.search_ip(login) != "0.0.0.0"):
+                if (_database.search_ip_and_last_time(login)[0] != "0.0.0.0"):
                     await _send_data(writer, 254, Extentions.defstr_to_bytes("This login is already registered."))
                     Logger.log(f"Registration {client_ip}:{client_port} as '{login}' was refused.")
                     continue
@@ -94,8 +94,11 @@ async def _on_connect(reader: asyncio.StreamReader, writer: asyncio.StreamWriter
                 ips = Extentions.int_to_bytes(login_count)
                 while login_count > 0:
                     requested_login, data = Extentions.bytes_to_defstr(data)
-                    ips += Extentions.defstr_to_bytes(_database.search_ip(requested_login))
-                    # REDO: Take into account Marina's changes in P2P_database.DataBaseClient
+                    requested_ip, requested_time = _database.search_ip_and_last_time(requested_login)
+                    requested_time = requested_time.strftime("%T %d.%m.%Y")
+                    requested_line = Extentions.defstr_to_bytes(requested_ip) +
+                                   + Extentions.defstr_to_bytes(requested_time)
+                    ips += requested_line
                     login_count -= 1
                 await _send_data(writer, 3, ips)
                 Logger.log(f"Requested IPs was sent to {client_ip}:{client_port}.")
