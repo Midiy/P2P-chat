@@ -158,7 +158,8 @@ async def main():
             if command == "$gotodialog":
                 system("cls")   # REDO: Add supporting not only Windows.
                 if arg not in contacts:
-                    current_contact = contacts[arg, *await get_ip_by_name(server, arg)]
+                    l = await get_ip_by_name(server, arg)
+                    current_contact = contacts[arg, l[0], l[1]]
                 else:
                     current_contact = contacts[arg]
                 # print_history(arg)
