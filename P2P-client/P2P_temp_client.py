@@ -7,6 +7,7 @@ from P2P_database import DataBaseClient
 from P2P_lib import Logger, Extentions
 from typing import Callable
 from os import system
+from datetime import datetime
 
 
 class Contact:
