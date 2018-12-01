@@ -4,7 +4,7 @@ import asyncio
 from concurrent.futures import TimeoutError
 from P2P_lib import Logger, Extentions
 from P2P_database import DataBaseClient
-from typing import Callable, List
+from typing import Callable, List, Tuple
 from datetime import datetime
 
 
@@ -322,7 +322,7 @@ class ClientToClient(_IConnection):
         Logger.log("Message to '{self.client_login}' ({self._host}:{self._port}) was successfully sent.")
 
     @Logger.logged("client")
-    async def get_IPs(self, logins: List[str]) -> List[str, datetime]:
+    async def get_IPs(self, logins: List[str]) -> List[Tuple[str, datetime]]:
         await self._recreate_connection()
         data_to_send = Extentions.int_to_bytes(len(logins))
         for login in logins:
