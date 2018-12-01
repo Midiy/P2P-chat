@@ -166,5 +166,5 @@ async def main():
             else:
                 pass   # TODO: Add some other cases.
 
-
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())
