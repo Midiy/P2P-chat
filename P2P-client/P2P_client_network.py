@@ -4,7 +4,7 @@ import asyncio
 from concurrent.futures import TimeoutError
 from P2P_lib import Logger, Extentions
 from P2P_database import DataBaseClient
-from typing import Callable
+from typing import Callable, List
 
 
 class Listener:
@@ -89,8 +89,11 @@ class Listener:
                             if requested_login == "server":
                                 ips += Extentions.defstr_to_bytes(self._server_endpoint)
                             else:
-                                ips += Extentions.defstr_to_bytes(self._database.search_ip(requested_login))
-                                # REDO: Take into account Marina's changes in P2P_database.DataBaseClient
+                                requested_ip, requested_time = self._database.search_ip_and_last_time(requested_login)
+                                requested_time = requested_time.strftime("%T %d.%m.%Y")
+                                requested_line = Extentions.defstr_to_bytes(requested_ip) +
+                                               + Extentions.defstr_to_bytes(requested_time)
+                                ips += requested_line
                             login_count -= 1
                         await self._send_data(writer, 3, ips)
                         Logger.log(f"Requested IPs was sent to {client_ip}:{client_port}.")
@@ -248,7 +251,7 @@ class ClientToServer(_IConnection):
         Logger.log(f"Login as '{login}' was successful.", "client")
 
     @Logger.logged("client")
-    async def get_IPs(self, logins: list) -> list:
+    async def get_IPs(self, logins: List[str]) -> List[(str, datetime)]:
         await self._recreate_connection()
         data = Extentions.int_to_bytes(len(logins))
         for i in range(0, len(logins)):
@@ -261,7 +264,8 @@ class ClientToServer(_IConnection):
         count, data = Extentions.bytes_to_int(data)
         while count > 0:
             ip, data = Extentions.defstr_to_bytes(data)
-            result.append(ip)
+            time, data = Extentions.defstr_to_bytes(data)
+            result.append((ip, datetime.strptime(time, "%T %d.%m.%Y")))
             count -= 1
         Logger.log(f"Requested IPs were received.", "client")
         return result
@@ -317,7 +321,7 @@ class ClientToClient(_IConnection):
         Logger.log("Message to '{self.client_login}' ({self._host}:{self._port}) was successfully sent.")
 
     @Logger.logged("client")
-    async def get_IPs(self, logins: list) -> list:
+    async def get_IPs(self, logins: List[str]) -> List[str, datetime]:
         await self._recreate_connection()
         data_to_send = Extentions.int_to_bytes(len(logins))
         for login in logins:
@@ -329,10 +333,11 @@ class ClientToClient(_IConnection):
         result = []
         for i in range(0, len(logins)):
             requested_ip, data = Extentions.bytes_to_defstr(data)
-            result.append(requested_ip)
+            requester_time, data = Extentions.bytes_to_defstr(data)
+            result.append((requested_ip, datetime.strptime(requested_time, "%T %d.%m.%Y")))
         return result
 
     @Logger.logged("client")
-    async def get_server_IP(self) -> str:
+    async def get_server_IP(self) -> (str, datetime):
         return self.get_IPs(["server"])[0]
     # TODO: Add some interaction with other client
