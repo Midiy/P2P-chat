@@ -127,7 +127,7 @@ class Client:
                                           server_endpoint, self._database)
         await self._listener.listen()
 
-    async def _get_ips_by_names(self, names: List[str]) -> list: # List[(str, datetime)]:
+    async def _get_ips_by_names(self, names: List[str]) -> List[Tuple[str, datetime]]:
         return await self._server.get_IPs(names)   # DEBUG
 
     async def send_message(self, name: str, message: str):
