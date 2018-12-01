@@ -252,7 +252,7 @@ class ClientToServer(_IConnection):
         Logger.log(f"Login as '{login}' was successful.", "client")
 
     @Logger.logged("client")
-    async def get_IPs(self, logins: List[str]) -> List[(str, datetime)]:
+    async def get_IPs(self, logins: List[str]) -> list:
         await self._recreate_connection()
         data = Extentions.int_to_bytes(len(logins))
         for i in range(0, len(logins)):
