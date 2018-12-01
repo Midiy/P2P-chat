@@ -54,9 +54,9 @@ class Client:
 
     class _Contact_dict(dict):
 
-        _create_new_contact_callback: Callable[[str, str, datetime], Client._Contact] = None
+        _create_new_contact_callback = None # : Callable[[str, str, datetime], Client._Contact] = None
 
-        def __init__(self, create_new_contact: Callable[[str, str, datetime], Client._Contact]):
+        def __init__(self, create_new_contact): # : Callable[[str, str, datetime], Client._Contact]):
             self._create_new_contact_callback = create_new_contact
             return super().__init__()
 
