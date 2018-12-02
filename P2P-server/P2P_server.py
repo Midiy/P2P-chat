@@ -59,7 +59,7 @@ async def _on_connect(reader: asyncio.StreamReader, writer: asyncio.StreamWriter
                 else:
                     preferred_port, _ = Extentions.bytes_to_defstr(data)
                 Logger.log(f"Registration {client_ip}:{client_port} as '{login}'...")
-                if (_database.search_ip_and_last_time(login)[0] != "0.0.0.0"):
+                if (_database.search_ip_and_last_time(login) != []):
                     await _send_data(writer, 254, Extentions.defstr_to_bytes("This login is already registered."))
                     Logger.log(f"Registration {client_ip}:{client_port} as '{login}' was refused.")
                     continue
@@ -95,8 +95,13 @@ async def _on_connect(reader: asyncio.StreamReader, writer: asyncio.StreamWriter
                 ips = Extentions.int_to_bytes(login_count)
                 while login_count > 0:
                     requested_login, data = Extentions.bytes_to_defstr(data)
-                    requested_ip, requested_time = _database.search_ip_and_last_time(requested_login)
-                    requested_time = requested_time.strftime("%T %d.%m.%Y")
+                    tmp = _database.search_ip_and_last_time(requested_login)
+                    if tmp == []:
+                        requested_ip = ""
+                        requested_time = ""
+                    else:
+                        requested_ip, requested_time = tmp
+                        requested_time = requested_time.strftime("%T %d.%m.%Y")
                     requested_line = (Extentions.defstr_to_bytes(requested_ip) +
                                       + Extentions.defstr_to_bytes(requested_time))
                     ips += requested_line
