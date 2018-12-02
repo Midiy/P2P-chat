@@ -1,10 +1,11 @@
 # Encoding: utf-8
 
+import asyncio
 import P2P_client_network as network
 from datetime import datetime
 from P2P_database import DataBaseClient
 from P2P_lib import Logger, Extentions
-from typing import Callable, List, Tuple
+from typing import Callable, List, Tuple, Coroutine
 
 
 class Client:
@@ -80,9 +81,10 @@ class Client:
     _server: network.ClientToServer = None
     _contacts: _Contact_dict = None
     _listener: network.Listener = None
+    _connect_to_server: Coroutine = None
 
     @Logger.logged("client")
-    async def __init__(self, login: str, password: str,
+    def __init__(self, login: str, password: str,
                        on_receive_callback: Callable[[str, str, str], None],
                        need_registration: bool=False):
         self.login = login
@@ -96,9 +98,9 @@ class Client:
         server_endpoint = "127.0.0.1"   # DEBUG
         self._server = network.ClientToServer(server_endpoint)
         if need_registration:
-            await self._server.registration(self.login, self.password)
+                self._connect_to_server = self._server.registration(self.login, self._password)
         else:
-            await self._server.login(self.login, self.password)
+            self._connect_to_server = self._server.login(self.login, self.password)
 
         @Logger.logged("client")
         def _add_new_contact(name: str, ip: str, upgrade_time: datetime) -> Client._Contact:
@@ -106,11 +108,6 @@ class Client:
             return Client._Contact(name, self._login, upgrade_time)
 
         self._contacts = Client._Contact_dict(_add_new_contact)
-        contacts_names = self._database.get_all_friends()
-        contacts_ips = await self._get_ips_by_names(contacts_names)
-        for n in contacts_names, i in contacts_ips:
-            self._contacts[c] = Client._Contact(c, self.login)
-            self._contacts[c].upgrade_ip(*i)
 
         # TODO: Add P2P-upgrading contacts IP
 
@@ -125,12 +122,26 @@ class Client:
 
         self._listener = network.Listener(login, _on_receive_callback, _upgrade_ip,
                                           server_endpoint, self._database)
-        await self._listener.listen()
+
+    async def establish_connections(self):
+            await self._connect_to_server
+            contacts_names = self._database.get_all_friends()
+            contacts_ips = await self._get_ips_by_names(contacts_names)
+            for n in contacts_names, i in contacts_ips:
+                self._contacts[c] = Client._Contact(c, self.login)
+                self._contacts[c].upgrade_ip(*i)
+                await self._listener.listen()
 
     async def _get_ips_by_names(self, names: List[str]) -> List[Tuple[str, datetime]]:
+        if self._init_promise is not None:
+            await self._init_promise()
+            self._init_promise = None
         return await self._server.get_IPs(names)   # DEBUG
 
     async def send_message(self, name: str, message: str):
+        if self._init_promise is not None:
+            await self._init_promise()
+            self._init_promise = None
         if name not in self._contacts:
             ip, time = await self._get_ips_by_names([name])[0]
             current_contact = self._contacts[name, ip, time]
@@ -139,6 +150,9 @@ class Client:
         await current_contact.send_text_message(message)
 
     async def get_history(self, name: str) -> str:
+        if self._init_promise is not None:
+            await self._init_promise()
+            self._init_promise = None
         if name not in self._contacts:
             ip, time = await self._get_ips_by_names([name])[0]
             current_contact = self._contacts[name, ip, time]        
@@ -146,5 +160,8 @@ class Client:
             current_contact = self._contacts[name]
         return current_contact.get_history()
 
-    def get_contacts_list(self) -> List[str]:
+    async def get_contacts_list(self) -> List[str]:
+        if self._init_promise is not None:
+            await self._init_promise()
+            self._init_promise = None
         return [i for i in self._contacts]

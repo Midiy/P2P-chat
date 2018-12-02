@@ -1,6 +1,7 @@
 # Encoding: utf-8
 
 import asyncio
+import P2P_client
 import P2P_client_network as network
 from datetime import datetime
 from P2P_database import DataBaseClient
@@ -78,7 +79,7 @@ def get_command(line: str) -> (str, str):
     i = 1
     while line[i] != " ":
         i += 1
-    j = i + 1
+    j = i
     while line[i] == " ":
         i += 1
     return (line[:j], line[i:])
@@ -166,5 +167,48 @@ async def main():
             else:
                 pass   # TODO: Add some other cases.
 
+async def new_main():
+    if input("Do you want to (l)ogin or to (r)egister? ") == "l":
+        registration = False
+    else:
+        registration = True
+    login = input("Login: ")
+    password = input("Password: ")
+    system("cls")   # REDO: Add supporting not only Windows.
+    current_contact = None
+
+    def _on_receive(data: bytes, contact_login: str, contact_ip: str):
+        msg_datetime = datetime.now().strftime("%d.%m.%Y %T")
+        message = f"[{msg_datetime} {contact_login}] : {Extentions.bytes_to_defstr(data)[0]}"
+        if current_contact == contact_login:
+            print(f"[{contact_login}]: {Extentions.bytes_to_defstr(data)[0]}")
+        else:
+            print(f"\nNew message from {contact_login}!\n")
+
+    client = P2P_client.Client(login, password, _on_receive, registration)
+    await client.establish_connections()
+    loop = asyncio.get_event_loop()
+    while True:
+        line = await loop.run_in_executor(None, input)
+        if not line.startswith("$"):
+            if current_contact is None:
+                print("You should use '$gotodialog <username>' first")
+            else:
+                await client.send_message(current_contact, line)
+                print(f"[{datetime.now().strftime('%d.%m.%Y %T')} {login}]: {line}")
+        else:
+            command, arg = get_command(line)
+            if command == "$gotodialog":
+                system("cls")   # REDO: Add supporting not only Windows.
+                current_contact = arg
+                print(await client.get_history(current_contact))
+            elif command == "$exit":
+                break
+            else:
+                print(f"What is '{command}'?")
+                pass   # TODO: Add some other cases.
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(new_main())
