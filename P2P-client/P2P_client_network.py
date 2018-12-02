@@ -90,8 +90,13 @@ class Listener:
                             if requested_login == "server":
                                 ips += Extentions.defstr_to_bytes(self._server_endpoint)
                             else:
-                                requested_ip, requested_time = self._database.search_ip_and_last_time(requested_login)
-                                requested_time = requested_time.strftime("%T %d.%m.%Y")
+                                tmp = self._database.search_ip_and_last_time(requested_login)
+                                if tmp == []:
+                                    requested_ip = ""
+                                    requested_time = ""
+                                else:
+                                    requested_ip, requested_time = tmp
+                                    requested_time = requested_time.strftime("%T %d.%m.%Y")
                                 requested_line = (Extentions.defstr_to_bytes(requested_ip) +
                                                   + Extentions.defstr_to_bytes(requested_time))
                                 ips += requested_line

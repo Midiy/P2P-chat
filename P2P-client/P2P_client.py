@@ -133,15 +133,9 @@ class Client:
                 await self._listener.listen()
 
     async def _get_ips_by_names(self, names: List[str]) -> List[Tuple[str, datetime]]:
-        if self._init_promise is not None:
-            await self._init_promise()
-            self._init_promise = None
         return await self._server.get_IPs(names)   # DEBUG
 
     async def send_message(self, name: str, message: str):
-        if self._init_promise is not None:
-            await self._init_promise()
-            self._init_promise = None
         if name not in self._contacts:
             ip, time = await self._get_ips_by_names([name])[0]
             current_contact = self._contacts[name, ip, time]
@@ -150,9 +144,6 @@ class Client:
         await current_contact.send_text_message(message)
 
     async def get_history(self, name: str) -> str:
-        if self._init_promise is not None:
-            await self._init_promise()
-            self._init_promise = None
         if name not in self._contacts:
             ip, time = await self._get_ips_by_names([name])[0]
             current_contact = self._contacts[name, ip, time]        
@@ -160,8 +151,5 @@ class Client:
             current_contact = self._contacts[name]
         return current_contact.get_history()
 
-    async def get_contacts_list(self) -> List[str]:
-        if self._init_promise is not None:
-            await self._init_promise()
-            self._init_promise = None
+    def get_contacts_list(self) -> List[str]:
         return [i for i in self._contacts]
