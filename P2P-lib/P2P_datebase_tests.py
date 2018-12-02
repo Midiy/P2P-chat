@@ -32,6 +32,10 @@ class P2PDataBaseTest(unittest.TestCase):
         self.assertTrue(lst_1[1] <= time2)
         self.assertTrue(time1 <= lst_1[1])
 
+        lst_3 = db.search_ip_and_last_time('login3444')
+        self.assertEqual(lst_3[0], '0.0.0.0')
+        self.assertEqual(lst_3[1], datetime(MINYEAR, 1, 1))
+
         self.assertTrue(db.update_ip('login', '133.133.133.133'))
         time2 = datetime.now()
 
@@ -70,13 +74,17 @@ class P2PDataBaseTest(unittest.TestCase):
         self.assertTrue(lst_1[1] <= time2)
         self.assertTrue(time1 <= lst_1[1])
 
-        self.assertTrue(db.update_ip('login', '178.178.178.178'))
+        self.assertTrue(db.update_ip('login', '178.178.178.178', datetime.now()))
         time2 = datetime.now()
 
         lst_1 = db.search_ip_and_last_time('login')
         self.assertEqual(lst_1[0], '178.178.178.178')
         self.assertTrue(lst_1[1] <= time2)
         self.assertTrue(time1 <= lst_1[1])
+
+        lst_3 = db.search_ip_and_last_time('login3456')
+        self.assertEqual(lst_3[0], '0.0.0.0')
+        self.assertEqual(lst_3[1], datetime(MINYEAR, 1, 1))
 
         time15 = datetime(2018, 12, 15)
         time10 = datetime(2018, 12, 10)

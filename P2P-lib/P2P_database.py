@@ -77,8 +77,8 @@ class DataBaseServer:
         cur.execute("SELECT ip, last_time FROM clients WHERE login = ? ;", (login, ))
         result = cur.fetchall()
         cur.close()
-        if result is None:
-            return []
+        if len(result) == 0:
+            return '0.0.0.0', datetime(MINYEAR, 1, 1)
         return result[0][0], datetime.strptime(result[0][1], '%Y-%m-%d %H:%M:%S.%f')
 
 
@@ -141,7 +141,7 @@ class DataBaseClient:
             result += i
         return result
 
-    def update_ip(self, login: str, ip: str, d_time=datetime.now()) -> bool:
+    def update_ip(self, login: str, ip: str, d_time) -> bool:
         cur = self._db_conn.cursor()
         cur.execute("UPDATE friends SET ip = ?, last_time = ? WHERE friend = ? ;", (ip, d_time, login))
         _status = cur.rowcount == 1
@@ -154,8 +154,8 @@ class DataBaseClient:
         cur.execute("SELECT ip, last_time FROM friends WHERE friend = ? ;", (login, ))
         result = cur.fetchall()
         cur.close()
-        if result is None:
-            return []
+        if len(result) == 0:
+            return '0.0.0.0', datetime(MINYEAR, 1, 1)
         return result[0][0], datetime.strptime(result[0][1], '%Y-%m-%d %H:%M:%S.%f')
 
     def add_message(self, login_fr: str, time, type_m: bool, mess)->bool:
