@@ -133,8 +133,8 @@ class Client:
             time = datetime.now()
             self._contacts[name, ip, time].upgrade_ip(ip, time)
 
-        self._listener = network.Listener(login, _on_receive_callback, _upgrade_ip,
-                                          server_endpoint, self._database)
+        self._listener = network.Listener(login, _on_receive_callback, 
+                                          _upgrade_ip, self._database)
 
     async def establish_connections(self) -> bool:
         try:
