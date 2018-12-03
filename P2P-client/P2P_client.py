@@ -107,7 +107,7 @@ class Client:
         self._database.init()
         self._Contact.database = self._database
         server_endpoint = self._Contact.database.search_ip_and_last_time("server")[0]
-        if server_endpoint == []:
+        if server_endpoint == "0.0.0.0":
             server_endpoint = "127.0.0.1"   # DEBUG
         else:
             server_endpoint = server_endpoint[0]
@@ -119,8 +119,8 @@ class Client:
 
         @Logger.logged("client")
         def _add_new_contact(name: str, ip: str, upgrade_time: datetime) -> Client._Contact:
-            self._database.add_friend(name, ip)
-            return Client._Contact(name, self._login, upgrade_time)
+            self._database.add_friend(name, ip, upgrade_time)
+            return Client._Contact(name, self.login)
 
         self._contacts = Client._Contact_dict(_add_new_contact)
         def _on_receive_callback(data: bytes, contact_login: str, contact_endpoint: str):
@@ -149,7 +149,7 @@ class Client:
             self._contacts[n] = Client._Contact(n, self.login)
         contacts_ips = await self._get_ips_by_names(contacts_names)
         server_upgrade_time = self._database.search_ip_and_last_time("server")
-        if server_upgrade_time != []:
+        if server_upgrade_time[0] != "0.0.0.0":
             server_upgrade_time = server_upgrade_time[1]
         else:
             server_upgrade_time = None
@@ -201,7 +201,7 @@ class Client:
 
     async def get_history(self, name: str) -> List[Tuple[str, datetime, str]]:
         if name not in self._contacts:
-            ip, time = await self._get_ips_by_names([name])[0]
+            ip, time = (await self._get_ips_by_names([name]))[0]
             current_contact = self._contacts[name, ip, time]        
         else:
             current_contact = self._contacts[name]

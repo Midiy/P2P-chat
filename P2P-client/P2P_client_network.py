@@ -98,7 +98,7 @@ class Listener:
                                 ips += requested_line
                             else:
                                 tmp = self._database.search_ip_and_last_time(requested_login)
-                                if tmp == []:
+                                if tmp[0] == "0.0.0.0":
                                     requested_ip = ""
                                     requested_time = ""
                                 else:
@@ -134,7 +134,8 @@ class Listener:
     @Logger.logged("client")
     async def listen(self, port: int = 3502):
         self._server = await asyncio.start_server(self._on_connect_wrapper(), host="0.0.0.0", port=port)
-        await self._server.start_serving()
+        print(dir(self._server))
+        # await self._server.start_serving()
         _endpoint = self._server.sockets[0].getsockname()
         Logger.log(f"Listening established on {_endpoint[0]}:{_endpoint[1]}.", "client")
 
