@@ -15,13 +15,16 @@ class P2PWindow(Tk):
         self._messages = None
         self._current_friend = None
 
-        self.init_ui()
-
         self._client = Client(conf[conf.default_section]['login'], conf[conf.default_section]['password'],
                               self.on_receive_msg_callback, bool(conf[conf.default_section]['registration']))
         # conf[conf.default_section]['database'] - не нужен
         # conf[conf.default_section]['server'] - -//-
         # conf[conf.default_section]['port'] - const 3501
+
+        self._loop = asyncio.get_event_loop()
+        self._loop.run_until_complete(self._client.establish_connections())
+
+        self.init_ui()
 
         lst = self._client.get_contacts_list()
         lst = ['friend_1', 'friend_2']
@@ -29,9 +32,6 @@ class P2PWindow(Tk):
             self._friends.insert(END, i)
         self._friends.select_set(0)
         self._friends.event_generate("<<ListboxSelect>>")
-
-        self._loop = asyncio.get_event_loop()
-        self._loop.run_until_complete(self._client.establish_connections())
 
     def init_ui(self):
         self.title('P2P-chat')

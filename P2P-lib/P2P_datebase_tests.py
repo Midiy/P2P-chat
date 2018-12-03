@@ -57,9 +57,9 @@ class P2PDataBaseTest(unittest.TestCase):
         db = DataBaseClient("test.sqlite")
 
         self.assertTrue(db.init())
-        self.assertTrue(db.add_friend('login', '222.222.222.222'))
-        self.assertTrue(db.add_friend('login2', '111.111.111.111'))
-        self.assertTrue(db.add_friend('login55', '232.232.232.232'))
+        self.assertTrue(db.add_friend('login', '222.222.222.222', datetime.now()))
+        self.assertTrue(db.add_friend('login2', '111.111.111.111', datetime.now()))
+        self.assertTrue(db.add_friend('login55', '232.232.232.232', datetime.now()))
         self.assertTrue(db.del_friend('login55'))
         lst = db.get_all_friends()
         self.assertEqual(len(lst), 2)
