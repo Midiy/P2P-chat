@@ -210,10 +210,10 @@ class Client:
     def get_contacts_list(self) -> List[str]:
         return [i.name for i in self._contacts]
 
-    async def add_friend(self, name: str):
+    async def add_contact(self, name: str):
         ip, time = await self._get_ips_by_names([name])[0]
         self._contacts[name, ip, time]
 
-    def delete_friend(self, name: str):
+    def delete_contact(self, name: str):
         self._contacts.pop(name)
         self._database.del_friend(name)
