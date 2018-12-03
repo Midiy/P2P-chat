@@ -347,7 +347,7 @@ class ClientToClient(_IConnection):
         result = []
         for i in range(0, len(logins)):
             requested_ip, data = Extentions.bytes_to_defstr(data)
-            requester_time, data = Extentions.bytes_to_defstr(data)
+            requested_time, data = Extentions.bytes_to_defstr(data)
             if requested_ip == "":
                 result.append((None, None))
             else:

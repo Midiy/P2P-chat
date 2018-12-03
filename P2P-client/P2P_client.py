@@ -106,7 +106,7 @@ class Client:
         self._database = DataBaseClient(login + ".sqlite")
         self._database.init()
         self._Contact.database = self._database
-        server_endpoint = database.search_ip_and_last_time("server")[0]
+        server_endpoint = self._Contact.database.search_ip_and_last_time("server")[0]
         if server_endpoint == []:
             server_endpoint = "127.0.0.1"   # DEBUG
         else:
@@ -146,9 +146,9 @@ class Client:
         for n in contacts_names:
             if n == "server":
                 continue
-            self._contacts[c] = Client._Contact(c, self.login)
+            self._contacts[n] = Client._Contact(n, self.login)
         contacts_ips = await self._get_ips_by_names(contacts_names)
-        server_update_time = self._database.search_ip_and_last_time("server")
+        server_upgrade_time = self._database.search_ip_and_last_time("server")
         if server_upgrade_time != []:
             server_upgrade_time = server_upgrade_time[1]
         else:
@@ -162,7 +162,7 @@ class Client:
                         server_upgrade_time = i[1]
                         self._server = network.ClientToServer(i[0])
                 continue
-            self._contacts[c].upgrade_ip(*i)
+            self._contacts[n].upgrade_ip(*i)
         contacts_ips = await self._get_ips_by_names(contacts_names)
         for n in contacts_names, i in contacts_ips:
             if n == "server":
@@ -173,7 +173,7 @@ class Client:
                         server_upgrade_time = i[1]
                         self._server = network.ClientToServer(i[0])
                 continue
-            self._contacts[c].upgrade_ip(*i)
+            self._contacts[n].upgrade_ip(*i)
         await self._listener.listen()
         return self.is_connected
 
