@@ -19,8 +19,9 @@ class P2PWindow(Tk):
 
         self._client = Client(conf[conf.default_section]['login'], conf[conf.default_section]['password'],
                               self.on_receive_msg_callback, bool(conf[conf.default_section]['registration']))
-        # conf[conf.default_section]['database'], conf[conf.default_section]['server'],
-        # conf[conf.default_section]['port']
+        # conf[conf.default_section]['database'] - не нужен
+        # conf[conf.default_section]['server'] - -//-
+        # conf[conf.default_section]['port'] - const 3501
 
         lst = self._client.get_contacts_list()
         lst = ['friend_1', 'friend_2']
@@ -29,8 +30,8 @@ class P2PWindow(Tk):
         self._friends.select_set(0)
         self._friends.event_generate("<<ListboxSelect>>")
 
-        # loop = asyncio.get_event_loop()
-        # loop.run_until_complete(self._client.establish_connections)
+        self._loop = asyncio.get_event_loop()
+        self._loop.run_until_complete(self._client.establish_connections())
 
     def init_ui(self):
         self.title('P2P-chat')
@@ -78,7 +79,7 @@ class P2PWindow(Tk):
         self.config(menu=_menu)
 
     def mes_send_1(self):
-        self._client.send_message(self._current_friend, self._txt.get())
+        self._loop.run_until_complete(self._client.send_message(self._current_friend, self._txt.get()))
         # Client.send_message должен возвращать текст в формате стальных сообщений
         self._messages.config(state=NORMAL)
         self._messages.insert(END, self._txt.get() + '\n')
@@ -94,10 +95,10 @@ class P2PWindow(Tk):
         self._current_friend = w.get(index)
         self._messages.config(state=NORMAL)
         self._messages.delete('1.0', END)
-        self._messages.insert(END, self._client.get_history(self._current_friend))
+        self._messages.insert(END, self._loop.run_until_complete(self._client.get_history(self._current_friend)))
         self._messages.config(state=DISABLED)
 
-    def on_receive_msg_callback(self, mes, friend, client_endpoint):
+    def on_receive_msg_callback(self, friend, time, mes):
         if friend == self._current_friend:
             self._messages.config(state=NORMAL)
             # mes должен быть в  формате стальных сообщений
@@ -107,7 +108,7 @@ class P2PWindow(Tk):
     def add_friend(self):
         friend_log = self.get_friend('Введите имя нового друга:')
         if len(friend_log) != 0:
-            self._client.add_contact(friend_log)
+            self._loop.run_until_complete(self._client.add_contact(friend_log))
             self._friends.insert(END, friend_log)
             index = self._friends.get(0, "end").index(friend_log)
             self._friends.select_set(index)
@@ -116,7 +117,7 @@ class P2PWindow(Tk):
     def del_friend(self):
         friend_log = self.get_friend('Введите имя удаляемого друга:')
         if (len(friend_log) != 0) and (friend_log in self._client.get_contacts_list()):
-            self._client.delete_contact(friend_log)
+            self._loop.run_until_complete(self._client.delete_contact(friend_log))
             index = self._friends.get(0, "end").index(friend_log)
             self._friends.remove(index)
             if friend_log == self._current_friend:
