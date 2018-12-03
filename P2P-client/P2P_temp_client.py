@@ -2,76 +2,11 @@
 
 import asyncio
 import P2P_client
-import P2P_client_network as network
-from datetime import datetime
-from P2P_database import DataBaseClient
-from P2P_lib import Logger, Extentions
+from P2P_lib import Logger
 from typing import Callable
 from os import system
 from datetime import datetime
-
-
-class Contact:
-
-    database: DataBaseClient = None
-
-    connection: network._IConnection = None
-
-    _name: str = None
-    _ip: str = None
-    _last_upgrade: datetime = None
-    _history: str = None
-    _login: str = None
-
-    def __init__(self, name: str, login: str):
-        if Contact.database is None:
-            raise Exception("You should initialise Contact.database first!")
-        self._name = name
-        self._login = login
-        self._ip, self._last_upgrade = Contact.database.search_ip_and_last_time(name)
-        history = Contact.database.search_messages(name)
-        for time, type, text in history:
-            if type:
-                self._history += text + "\n"
-        self._connection = network.ClientToClient(login, name, self._ip)
-
-    def add_text_message(self, message: str):
-        Contact.database.add_message(self._name, datetime.now(), True, message)
-        self._history += message + "\n"
-
-    async def send_text_message(self, message: str):
-        await self.connection.send_text_message(message)
-        self.add_text_message(f"[{datetime.now().strftime('%d.%m.%Y %T')} {self._login}]: {message}")
-
-    def upgrade_ip(self, new_ip: str, upgrade_time: datetime) -> bool:
-        if upgrade_time <= self._last_upgrade:
-            return False
-        Contact.database.update_ip(self._name, new_ip)
-        self._ip = new_ip
-        self._last_upgrade = upgrade_time
-        self._connection = network.ClientToClient(self._login, self._name, self._ip)
-        return True
-
-
-class Contact_dict(dict):
-
-    _create_new_contact_callback: Callable[[str, str, datetime], Contact] = None
-
-    def __init__(self, create_new_contact: Callable[[str, str, datetime], Contact]):
-        self._create_new_contact_callback = create_new_contact
-        return super().__init__()
-
-    def __getitem__(self, key: (str, str, datetime)) -> Contact:
-        if type(key) == tuple:
-            ip = key[1]
-            upgrade_time = key[2]
-            key = key[0]
-        else:
-            ip = None
-            upgrade_time = None
-        if key not in self.keys():
-            self[key] = self._create_new_contact_callback(key, ip, upgrade_time)
-        return super().__getitem__(key)
+from sys import platform
 
 
 @Logger.logged("client")
@@ -86,11 +21,6 @@ def get_command(line: str) -> (str, str):
 
 
 @Logger.logged("client")
-async def get_ip_by_name(server: network.ClientToServer, name: str) -> (str, datetime):   # DEBUG
-    return await server.get_IPs([name])[0]   # DEBUG
-
-
-@Logger.logged("client")
 async def main():
     if input("Do you want to (l)ogin or to (r)egister? ") == "l":
         registration = False
@@ -98,92 +28,18 @@ async def main():
         registration = True
     login = input("Login: ")
     password = input("Password: ")
-    system("cls")   # REDO: Add supporting not only Windows.
-    database = DataBaseClient()
-    database.init()
-    Contact.database = database
-    # server_endpoint = database.search_ip("server")
-    # if server_endpoint == "0.0.0.0":
-    server_endpoint = "127.0.0.1"   # DEBUG
-    server = network.ClientToServer(server_endpoint)
-    if registration:
-        await server.registration(login, password)
+    if platform == "win32":
+        system("cls")
     else:
-        await server.login(login, password)
-
-    @Logger.logged("client")
-    def _add_new_contact(name: str, ip: str, upgrade_time: datetime) -> Contact:
-        database.add_friend(name, ip)
-        return Contact(name, login, upgrade_time)
-
-    contacts = Contact_dict(_add_new_contact)
-    contacts_names = database.get_all_friends()
-    for c in contacts_names:
-        contacts[c] = Contact(c, login)
-        contacts[c].upgrade_ip(*server.get_IPs([c])[0])
-
-    # TODO: Add P2P-upgrading contacts IP
-
+        system("clear")
     current_contact = None
 
-    @Logger.logged("client")
-    def _on_receive(data: bytes, contact_login: str, contact_ip: str):
-        msg_datetime = datetime.now().strftime("%d.%m.%Y %T")
-        message = f"[{msg_datetime} {contact_login}] : {Extentions.bytes_to_defstr(data)[0]}"
-        if current_contact == contacts[contact_login, contact_ip, datetime.now()]:
-            print(f"[{contact_login}]: {Extentions.bytes_to_defstr(data)[0]}")
+    def _on_receive(sender: str, time: datetime, message: str):
+        time = time.strftime("%d.%m.%Y %T")
+        if current_contact == sender:
+            print(f"[{time} {sender}]: {message}")
         else:
-            print(f"\nNew message from {contact_login}!\n")
-        contacts[contact_login].add_text_message(message)
-
-    def _upgrade_ip(name: str, ip: str):
-        time = datetime.now()
-        contacts[name, ip, time].upgrade_ip(ip, time)
-
-    listener = network.Listener(login, _on_receive, _upgrade_ip,
-                                server_endpoint, database)
-    await listener.listen()
-    while True:
-        line = input()
-        if line == "$refresh":
-            await asyncio.sleep(1)
-            continue
-        if not line.startswith("$"):
-            if current_contact is None:
-                print("You should use '$gotodialog <username>' first")
-            else:
-                await current_contact.send_text_message(line)
-                print(f"[{datetime.now().strftime('%d.%m.%Y %T')} {login}]: {line}")
-        else:
-            command, arg = get_command(line)
-            if command == "$gotodialog":
-                system("cls")   # REDO: Add supporting not only Windows.
-                if arg not in contacts:
-                    l = await get_ip_by_name(server, arg)
-                    current_contact = contacts[arg, l[0], l[1]]
-                else:
-                    current_contact = contacts[arg]
-                # print_history(arg)
-            else:
-                pass   # TODO: Add some other cases.
-
-async def new_main():
-    if input("Do you want to (l)ogin or to (r)egister? ") == "l":
-        registration = False
-    else:
-        registration = True
-    login = input("Login: ")
-    password = input("Password: ")
-    system("cls")   # REDO: Add supporting not only Windows.
-    current_contact = None
-
-    def _on_receive(data: bytes, contact_login: str, contact_ip: str):
-        msg_datetime = datetime.now().strftime("%d.%m.%Y %T")
-        message = f"[{msg_datetime} {contact_login}] : {Extentions.bytes_to_defstr(data)[0]}"
-        if current_contact == contact_login:
-            print(f"[{contact_login}]: {Extentions.bytes_to_defstr(data)[0]}")
-        else:
-            print(f"\nNew message from {contact_login}!\n")
+            print(f"\nNew message from {sender}!\n")
 
     client = P2P_client.Client(login, password, _on_receive, registration)
     await client.establish_connections()
@@ -194,21 +50,24 @@ async def new_main():
             if current_contact is None:
                 print("You should use '$gotodialog <username>' first")
             else:
-                await client.send_message(current_contact, line)
-                print(f"[{datetime.now().strftime('%d.%m.%Y %T')} {login}]: {line}")
+                if await client.send_message(current_contact, line):
+                    print(f"[{datetime.now().strftime('%d.%m.%Y %T')} {login}]: {line}")
+                else:
+                    print(f"Message\n'{line}'\nwasn't sent. Try again.")
         else:
             command, arg = get_command(line)
             if command == "$gotodialog":
-                system("cls")   # REDO: Add supporting not only Windows.
+                if platform == "win32":
+                    system("cls")
+                else:
+                    system("clear")
                 current_contact = arg
                 print(await client.get_history(current_contact))
             elif command == "$exit":
                 break
             else:
                 print(f"What is '{command}'?")
-                pass   # TODO: Add some other cases.
 
 
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(new_main())
+    asyncio.get_event_loop().run_until_complete(main())

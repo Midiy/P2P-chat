@@ -22,9 +22,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="P2P_client.py" />
-    <Compile Include="P2P_client_network.py">
-      <SubType>Code</SubType>
-    </Compile>
+    <Compile Include="P2P_client_network.py" />
     <Compile Include="P2P_temp_client.py" />
     <Compile Include="P2P_Window.py" />
   </ItemGroup>

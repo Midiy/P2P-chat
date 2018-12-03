@@ -12,7 +12,7 @@ class Listener:
 
     _server: asyncio.AbstractServer = None
     _loop: asyncio.AbstractEventLoop = None
-    _server_endpoint: str = None   # TODO: Is it really necessary? Shouldn't we just find "server" in DB?
+    _server_endpoint: Tuple[str, datetime] = None
     _database: DataBaseClient = None
 
     login: str = None
@@ -23,13 +23,12 @@ class Listener:
     def __init__(self, login: str,
                  on_receive_msg_callback: Callable[[bytes, str, str], None],
                  upgrade_ip_callback: Callable[[str, str], None],
-                 server_endpoint: str, database: DataBaseClient,
-                 port: int=3502):
+                 database: DataBaseClient, port: int=3502):
         self.login = login
         self.on_receive_msg_callback = on_receive_msg_callback
         self.upgrade_ip_callback = upgrade_ip_callback
-        self._server_endpoint = server_endpoint
         self._database = database
+        self._server_endpoint = self._database.search_ip_and_last_time("server")
 
     @staticmethod
     @Logger.logged("client")
@@ -88,7 +87,15 @@ class Listener:
                         while login_count > 0:
                             requested_login, data = Extentions.bytes_to_defstr(data)
                             if requested_login == "server":
-                                ips += Extentions.defstr_to_bytes(self._server_endpoint)
+                                if self._server_login == []:
+                                    requested_ip = ""
+                                    requested_time = ""
+                                else:
+                                    requested_ip, requested_time = self._server_login
+                                    requested_time = requested_time.strftime("%T %d.%m.%Y")
+                                requested_line = (Extentions.defstr_to_bytes(requested_ip) +
+                                                  + Extentions.defstr_to_bytes(requested_time))
+                                ips += requested_line
                             else:
                                 tmp = self._database.search_ip_and_last_time(requested_login)
                                 if tmp == []:
@@ -111,10 +118,7 @@ class Listener:
                         else:
                             await self._send_data(writer, 253, Extentions.defstr_to_bytes("You should login first."))
                     elif code == 6:   # File message
-
-                        # TODO: Add handling file messages
-                        pass
-
+                        pass   # TODO: Add handling file messages
                     else:
                         msg, _ = Extentions.bytes_to_str(Extentions.int_to_bytes(code) + data)
                         Logger.log(f"Following message was resieved from {client_ip}:{client_port}:\n{msg}", "client")
@@ -158,8 +162,6 @@ class _IConnection:
         else:
             self._host = host
             self._port = port
-        # loop = asyncio.get_event_loop()
-        # loop.create_task(self._recreate_connection())
 
     @Logger.logged("client")
     def __del__(self):
@@ -203,7 +205,10 @@ class _IConnection:
         if (self.__class__ == _IConnection):
             self._raise_not_implemented_error()
         if self._writer is None or self._writer.is_closing() or not await self._check_connection(1):
-            connection = asyncio.open_connection(self._host, self._port)
+            try:
+                connection = await asyncio.open_connection(self._host, self._port)
+            except OSError:
+                self._raise_customised_exception("Couldn't (re)create connection with ({self._host}:{self._port}).")
             self._reader, self._writer = await connection
             if await self._check_connection(1):
                 Logger.log(f"Connection with ({self._host}:{self._port}) was established.", "client")
@@ -271,7 +276,10 @@ class ClientToServer(_IConnection):
         while count > 0:
             ip, data = Extentions.defstr_to_bytes(data)
             time, data = Extentions.defstr_to_bytes(data)
-            result.append((ip, datetime.strptime(time, "%T %d.%m.%Y")))
+            if ip == "":
+                result.append((None, None))
+            else:
+                result.append((ip, datetime.strptime(time, "%T %d.%m.%Y")))
             count -= 1
         Logger.log(f"Requested IPs were received.", "client")
         return result
@@ -340,10 +348,12 @@ class ClientToClient(_IConnection):
         for i in range(0, len(logins)):
             requested_ip, data = Extentions.bytes_to_defstr(data)
             requester_time, data = Extentions.bytes_to_defstr(data)
-            result.append((requested_ip, datetime.strptime(requested_time, "%T %d.%m.%Y")))
+            if requested_ip == "":
+                result.append((None, None))
+            else:
+                result.append((requested_ip, datetime.strptime(requested_time, "%T %d.%m.%Y")))
         return result
 
     @Logger.logged("client")
     async def get_server_IP(self) -> (str, datetime):
         return self.get_IPs(["server"])[0]
-    # TODO: Add some interaction with other client
