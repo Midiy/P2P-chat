@@ -164,7 +164,7 @@ class Client:
                 continue
             self._contacts[n].upgrade_ip(*i)
         contacts_ips = await self._get_ips_by_names(contacts_names)
-        for n in contacts_names, i in contacts_ips:
+        for n, i in zip(contacts_names, contacts_ips):
             if n == "server":
                 if (server_upgrade_time is None or
                     i[1] != None and
