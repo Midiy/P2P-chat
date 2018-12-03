@@ -134,7 +134,6 @@ class Listener:
     @Logger.logged("client")
     async def listen(self, port: int = 3502):
         self._server = await asyncio.start_server(self._on_connect_wrapper(), host="0.0.0.0", port=port)
-        print(dir(self._server))
         # await self._server.start_serving()
         _endpoint = self._server.sockets[0].getsockname()
         Logger.log(f"Listening established on {_endpoint[0]}:{_endpoint[1]}.", "client")

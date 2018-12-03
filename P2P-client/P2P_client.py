@@ -193,7 +193,7 @@ class Client:
 
     async def send_message(self, name: str, message: str) -> bool:
         if name not in self._contacts:
-            ip, time = await self._get_ips_by_names([name])[0]
+            ip, time = (await self._get_ips_by_names([name]))[0]
             current_contact = self._contacts[name, ip, time]
         else:
             current_contact = self._contacts[name]
