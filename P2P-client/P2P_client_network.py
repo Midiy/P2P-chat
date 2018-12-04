@@ -95,13 +95,13 @@ class Listener:
                                     requested_ip, requested_time = self._server_login
                                     requested_time = requested_time.strftime("%T %d.%m.%Y")
                                 requested_line = (Extentions.defstr_to_bytes(requested_ip) +
-                                                  + Extentions.defstr_to_bytes(requested_time))
+                                                  Extentions.defstr_to_bytes(requested_time))
                                 ips += requested_line
                             elif requested_login == self.login:
                                 requested_ip = socket.gethostbyname(socket.gethostname())
                                 requested_time = datetime.now().strftime("%T %d.%m.%Y")
                                 requested_line = (Extentions.defstr_to_bytes(requested_ip) +
-                                                  + Extentions.defstr_to_bytes(requested_time))
+                                                  Extentions.defstr_to_bytes(requested_time))
                                 ips += requested_line
                             else:
                                 tmp = self._database.search_ip_and_last_time(requested_login)
@@ -112,7 +112,7 @@ class Listener:
                                     requested_ip, requested_time = tmp
                                     requested_time = requested_time.strftime("%T %d.%m.%Y")
                                 requested_line = (Extentions.defstr_to_bytes(requested_ip) +
-                                                  + Extentions.defstr_to_bytes(requested_time))
+                                                  Extentions.defstr_to_bytes(requested_time))
                                 ips += requested_line
                             login_count -= 1
                         await self._send_data(writer, 3, ips)
@@ -246,7 +246,7 @@ class _IConnection:
     @staticmethod
     def _raise_not_implemented_error():
         raise NotImplementedError("'_IConnection' was conceived as abstract." +
-                                  + "\nYou mustn't use it directly; instead, inherit from it.")
+                                  "\nYou mustn't use it directly; instead, inherit from it.")
 
 
 class ClientToServerException(_IException):

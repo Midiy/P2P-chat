@@ -191,7 +191,7 @@ class Client:
                 await self._server.registration(self.login, self._password)
                 self.is_connected = True
             except network.ClientToServerException as ex:
-                if code == 251:
+                if ex.code == 251:
                     self.is_connected = False
                 else:
                     raise ex
@@ -200,7 +200,7 @@ class Client:
                 await self._server.login(self.login, self._password)
                 self.is_connected = True
             except network.ClientToServerException as ex:
-                if code == 251:
+                if ex.code == 251:
                     self.is_connected = False
                 else:
                     raise ex
