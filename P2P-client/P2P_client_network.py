@@ -1,6 +1,7 @@
 # Encoding: utf-8
 
 import asyncio
+import socket
 from concurrent.futures import TimeoutError
 from P2P_lib import Logger, Extentions
 from P2P_database import DataBaseClient
@@ -17,16 +18,16 @@ class Listener:
 
     login: str = None
     on_receive_msg_callback: Callable[[bytes, str, str], None] = None
-    upgrade_ip_callback: Callable[[str, str], None] = None
+    update_ip_callback: Callable[[str, str], None] = None
 
     @Logger.logged("client")
     def __init__(self, login: str,
                  on_receive_msg_callback: Callable[[bytes, str, str], None],
-                 upgrade_ip_callback: Callable[[str, str], None],
+                 update_ip_callback: Callable[[str, str], None],
                  database: DataBaseClient, port: int=3502):
         self.login = login
         self.on_receive_msg_callback = on_receive_msg_callback
-        self.upgrade_ip_callback = upgrade_ip_callback
+        self.update_ip_callback = update_ip_callback
         self._database = database
         self._server_endpoint = self._database.search_ip_and_last_time("server")
 
@@ -77,7 +78,7 @@ class Listener:
                             await self._send_data(writer, 252, Extentions.defstr_to_bytes("'server' is service login!"))
                             continue
                         client_login = received_login
-                        self.upgrade_ip_callback(client_login, client_ip + ":" + preferred_port)
+                        self.update_ip_callback(client_login, client_ip + ":" + preferred_port)
                         await self._send_data(writer, 2, Extentions.defstr_to_bytes(self.login))
                         timeout = 60
                         Logger.log(f"Login {client_ip}:{client_port} as '{client_login}' was confirmed.")
@@ -93,6 +94,12 @@ class Listener:
                                 else:
                                     requested_ip, requested_time = self._server_login
                                     requested_time = requested_time.strftime("%T %d.%m.%Y")
+                                requested_line = (Extentions.defstr_to_bytes(requested_ip) +
+                                                  + Extentions.defstr_to_bytes(requested_time))
+                                ips += requested_line
+                            elif requested_login == self.login:
+                                requested_ip = socket.gethostbyname(socket.gethostname())
+                                requested_time = datetime.now().strftime("%T %d.%m.%Y")
                                 requested_line = (Extentions.defstr_to_bytes(requested_ip) +
                                                   + Extentions.defstr_to_bytes(requested_time))
                                 ips += requested_line
@@ -134,8 +141,7 @@ class Listener:
     @Logger.logged("client")
     async def listen(self, port: int = 3502):
         self._server = await asyncio.start_server(self._on_connect_wrapper(), host="0.0.0.0", port=port)
-        print(dir(self._server))
-        # await self._server.start_serving()
+        # await self._server.start_serving()   # REDO Recognize, why it doesn'n work.
         _endpoint = self._server.sockets[0].getsockname()
         Logger.log(f"Listening established on {_endpoint[0]}:{_endpoint[1]}.", "client")
 
@@ -317,7 +323,7 @@ class ClientToClient(_IConnection):
         if await super()._recreate_connection():
             await self._send_data(2, Extentions.defstr_to_bytes(self.login))
             code, data = await self._get_data()
-            if code == 2 and Extentions.bytes_to_defstr(code)[0] == self.client_login:
+            if code == 2 and (Extentions.bytes_to_defstr(code)[0] == self.client_login or self.login == "guest"):
                 Logger.log(f"Connection with '{self.client_login}' ({self._host}:{self._port}) was established.", "client")
                 return
         self._raise_customised_exception("Couldn't (re)create connection with '{self.client_login}' ({self._host}:{self._port}).")

@@ -122,18 +122,18 @@ class Extentions:
 
 if is_igd_presented:
     class UPnP:
-    
+
         class UPnPException(Exception):
             pass
-    
+
         port: int = None
         is_opened: bool = None
         external_ip: int = None
-    
+
         _exact: bool = None
         _gateway: igd.Gateway = None
         _internal_port: int = None
-    
+
         def __init__(self, port: int=3501, is_port_exact: bool=True):
             self.port = port
             self._internal_port = port
@@ -143,7 +143,7 @@ if is_igd_presented:
             if self._gateway is None:
                 raise UPnP.UPnPException(f"There are no any UPnP-supporting devices!")
             self.external_ip = run(self._gateway.get_ext_ip())
-    
+
         def open_port(self, description: str=""):
             if self.is_opened:
                 raise UPnP.UPnPException(f"Port {self.port} has already been opened!")
@@ -156,7 +156,7 @@ if is_igd_presented:
             new_mapping = igd.proto.PortMapping('', self.popen_port, self._internal_port, 'TCP', None, True, description, -1)
             self._gateway.add_port_mapping(new_mapping)
             self.is_opened = True
-    
+
         def close_port(self):
             if not self.is_opened:
                 raise UPnP.UPnPException(f"Port {self.port} hasn't been opened yet!")

@@ -70,7 +70,7 @@ def main():
     Logger.log("IPs was requested.", "test_client")
     code, received_data = _get_gata(sock)
     if code != 3:
-        raise TestClientException(f"IP-upgrade request failed!")
+        raise TestClientException(f"IP-update request failed!")
     ips_count, received_data = Extentions.bytes_to_int(received_data)
     ips_list = ["Following IPs was received:"]
     while ips_count > 0:

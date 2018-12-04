@@ -3,7 +3,6 @@
 import asyncio
 import P2P_client
 from P2P_lib import Logger
-from typing import Callable
 from os import system
 from datetime import datetime
 from sys import platform
