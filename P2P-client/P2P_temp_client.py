@@ -13,9 +13,13 @@ def get_command(line: str) -> (str, str):
     i = 1
     while line[i] != " ":
         i += 1
+        if i >= len(line):
+            return (line, None)
     j = i
     while line[i] == " ":
         i += 1
+        if i >= len(line):
+            return (line, None)
     return (line[:j], line[i:])
 
 
@@ -62,6 +66,8 @@ async def main():
                     system("clear")
                 current_contact = arg
                 print(await client.get_history(current_contact))
+            elif command == "$refresh":
+                await asyncio.sleep(0.5)
             elif command == "$exit":
                 break
             else:
