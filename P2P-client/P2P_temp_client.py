@@ -66,6 +66,8 @@ async def main():
                     system("clear")
                 current_contact = arg
                 print(await client.get_history(current_contact))
+            elif command == "$refresh":
+                await asyncio.sleep(0.5)
             elif command == "$exit":
                 break
             else:
