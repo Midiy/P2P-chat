@@ -133,13 +133,16 @@ class Client:
         template_ip = internal_ip[:internal_ip.rfind(".") + 1]
         for i in range(0, 256):
             c = network.ClientToServer(f"{template_ip}{i}:3501")
+            print(f"{template_ip}{i}:3501")
             try:
                 await c.get_IPs([])
                 self._server = c
                 self._database.add_friend("server", f"{template_ip}{i}:3501", datetime.now())
                 return True
-            except OSError:
-                continue
+            except network.ClientToServerException as ex:
+                if ex.code == 251:
+                    continue
+                raise ex
         return False
 
     async def _discover_contacts(self, names: List[str]) -> bool:
@@ -165,7 +168,7 @@ class Client:
                             self._database.update_ip("server", *i)
                     else:
                         self._contacts[n].update_ip(*i)
-            except OSError:
+            except network.ClientToClient:
                 continue
         return result
 
@@ -187,14 +190,20 @@ class Client:
             try:
                 await self._server.registration(self.login, self._password)
                 self.is_connected = True
-            except network.ClientToServerException:
-                self.is_connected = False
+            except network.ClientToServerException as ex:
+                if code == 251:
+                    self.is_connected = False
+                else:
+                    raise ex
         else:
             try:
                 await self._server.login(self.login, self._password)
                 self.is_connected = True
-            except network.ClientToServerException:
-                self.is_connected = False
+            except network.ClientToServerException as ex:
+                if code == 251:
+                    self.is_connected = False
+                else:
+                    raise ex
         contacts_ips = await self._get_ips_by_names(contacts_names)
         server_update_time = self._database.search_ip_and_last_time("server")
         if server_update_time[0] != "0.0.0.0":
@@ -228,8 +237,11 @@ class Client:
     async def _get_ips_by_names(self, names: List[str]) -> List[Tuple[str, datetime]]:
         try:
             result = await self._server.get_IPs(names)
-        except network.ClientToServerException:
-            result = [(None, None)] * len(names)
+        except network.ClientToServerException as ex:
+            if ex.code == 251:
+                result = [(None, None)] * len(names)
+            else:
+                raise ex
         for c in self._contacts:
             client_result = await c.get_IPs(names)
             for i in range(0, len(names)):

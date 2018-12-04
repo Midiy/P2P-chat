@@ -42,7 +42,11 @@ async def _on_connect(reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     Logger.log(f"Accepted connection from {client_ip}:{client_port}.")
     while True:
         try:
-            code, data = await _get_data(reader, timeout)
+            try:
+                code, data = await _get_data(reader, timeout)
+            except ConnectionResetError:
+                Logger.log(f"Connection from {client_ip}:{client_port} closed by peer.")
+                break
             if code == 0:   # Ping
                 await _send_data(writer, 0)
                 Logger.log(f"Ping was sent to {client_ip}:{client_port}.")

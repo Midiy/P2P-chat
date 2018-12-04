@@ -13,9 +13,13 @@ def get_command(line: str) -> (str, str):
     i = 1
     while line[i] != " ":
         i += 1
+        if i >= len(line):
+            return (line, None)
     j = i
     while line[i] == " ":
         i += 1
+        if i >= len(line):
+            return (line, None)
     return (line[:j], line[i:])
 
 

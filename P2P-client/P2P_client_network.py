@@ -151,6 +151,19 @@ class Listener:
             self._server.close()
 
 
+class _IException(Exception):
+    message: str = None
+    code: int = None
+
+    def __init__(self, message, code):
+        super().__init__(message)
+        self.message = message
+        self.code = code
+
+    def __str__(self):
+        return self.message
+
+
 class _IConnection:
 
     _reader: asyncio.StreamReader = None
@@ -165,7 +178,7 @@ class _IConnection:
         i = host.find(":")
         if i != -1:
             self._port = int(host[i + 1:])
-            self._host = host[:i - 1]
+            self._host = host[:i]
         else:
             self._host = host
             self._port = port
@@ -204,27 +217,31 @@ class _IConnection:
         if (self.__class__ == _IConnection):
             self._raise_not_implemented_error()
         await self._send_data(0)
-        code, _ = await self._get_data(timeout)
+        try:
+            code, _ = await self._get_data(timeout)
+        except ConnectionAbortedError:
+            return False
         return code == 0
 
     @Logger.logged("client")
     async def _recreate_connection(self):
         if (self.__class__ == _IConnection):
             self._raise_not_implemented_error()
-        if self._writer is None or self._writer.is_closing() or not await self._check_connection(1):
+        if self._writer is None or not await self._check_connection(1):
             try:
-                connection = await asyncio.open_connection(self._host, self._port)
-            except OSError:
-                self._raise_customised_exception("Couldn't (re)create connection with ({self._host}:{self._port}).")
-            self._reader, self._writer = await connection
+                connection = await asyncio.wait_for(asyncio.open_connection(self._host, self._port), 1)
+            except (OSError, TimeoutError):
+                self._raise_customised_exception(f"Couldn't (re)create connection with ({self._host}:{self._port}).", 251)
+                return
+            self._reader, self._writer = connection
             if await self._check_connection(1):
                 Logger.log(f"Connection with ({self._host}:{self._port}) was established.", "client")
                 return
-        self._raise_customised_exception("Couldn't (re)create connection with ({self._host}:{self._port}).")
+        self._raise_customised_exception("Couldn't (re)create connection with ({self._host}:{self._port}).", 251)
 
     @staticmethod
-    def _raise_customised_exception(message: str):
-        raise Exception(message)
+    def _raise_customised_exception(message: str, code: int):
+        raise _IException(message, code)
 
     @staticmethod
     def _raise_not_implemented_error():
@@ -232,7 +249,7 @@ class _IConnection:
                                   + "\nYou mustn't use it directly; instead, inherit from it.")
 
 
-class ClientToServerException(Exception):
+class ClientToServerException(_IException):
     pass
 
 
@@ -243,8 +260,8 @@ class ClientToServer(_IConnection):
         super().__init__(host, port)
 
     @staticmethod
-    def _raise_customised_exception(message: str):
-        raise ClientToServerException(message)
+    def _raise_customised_exception(message: str, code: int):
+        raise ClientToServerException(message, code)
 
     @Logger.logged("client")
     async def registration(self, login: str, password: str):
@@ -254,7 +271,7 @@ class ClientToServer(_IConnection):
         await self._send_data(1, bts_login + bts_password)
         code, data = await self._get_data()
         if code != 1:
-            self._raise_customised_exception(Extentions.bytes_to_defstr(data)[0])
+            self._raise_customised_exception(Extentions.bytes_to_defstr(data)[0], code)
         Logger.log(f"User '{login}' was successfully registered.", "client")
 
     @Logger.logged("client")
@@ -265,7 +282,7 @@ class ClientToServer(_IConnection):
         await self._send_data(2, bts_login + bts_password)
         code, data = await self._get_data()
         if code != 2:
-            self._raise_customised_exception(Extentions.bytes_to_defstr(data)[0])
+            self._raise_customised_exception(Extentions.bytes_to_defstr(data)[0], code)
         Logger.log(f"Login as '{login}' was successful.", "client")
 
     @Logger.logged("client")
@@ -277,7 +294,7 @@ class ClientToServer(_IConnection):
         await self._send_data(3, data)
         code, data = await self._get_data()
         if code != 3:
-            self._raise_customised_exception(Extentions.bytes_to_defstr(data)[0])
+            self._raise_customised_exception(Extentions.bytes_to_defstr(data)[0], code)
         result = []
         count, data = Extentions.bytes_to_int(data)
         while count > 0:
@@ -299,11 +316,11 @@ class ClientToServer(_IConnection):
         await self._send_data(4, bts_login + bts_password)
         code, data = await self._get_data()
         if code != 2:
-            self._raise_customised_exception(Extentions.bytes_to_defstr(data)[0])
+            self._raise_customised_exception(Extentions.bytes_to_defstr(data)[0], code)
         Logger.log(f"User '{login}' was successfully deleted.", "client")
 
 
-class ClientToClientException(Exception):
+class ClientToClientException(_IException):
     pass
 
 
@@ -326,11 +343,11 @@ class ClientToClient(_IConnection):
             if code == 2 and (Extentions.bytes_to_defstr(code)[0] == self.client_login or self.login == "guest"):
                 Logger.log(f"Connection with '{self.client_login}' ({self._host}:{self._port}) was established.", "client")
                 return
-        self._raise_customised_exception("Couldn't (re)create connection with '{self.client_login}' ({self._host}:{self._port}).")
+        self._raise_customised_exception("Couldn't (re)create connection with '{self.client_login}' ({self._host}:{self._port}).", 251)
 
     @staticmethod
-    def _raise_customised_exception(message: str):
-        raise ClientToClientException(message)
+    def _raise_customised_exception(message: str, code: int):
+        raise ClientToClientException(message, code)
 
     @Logger.logged("client")
     async def send_text_message(self, message: str):
@@ -338,7 +355,7 @@ class ClientToClient(_IConnection):
         await self._send_data(5, Extentions.defstr_to_bytes(message))
         code, data = await self._get_data()
         if code != 5:
-            self._raise_customised_exception(Extentions.bytes_to_defstr(data)[0])
+            self._raise_customised_exception(Extentions.bytes_to_defstr(data)[0], code)
         Logger.log("Message to '{self.client_login}' ({self._host}:{self._port}) was successfully sent.")
 
     @Logger.logged("client")
@@ -350,7 +367,7 @@ class ClientToClient(_IConnection):
         await self._send_data(3, data_to_send)
         code, data = await self._get_data()
         if code != 3:
-            self._raise_customised_exception(Extentions.bytes_to_defstr(data)[0])
+            self._raise_customised_exception(Extentions.bytes_to_defstr(data)[0], code)
         result = []
         for i in range(0, len(logins)):
             requested_ip, data = Extentions.bytes_to_defstr(data)
