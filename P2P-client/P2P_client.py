@@ -1,11 +1,11 @@
 # Encoding: utf-8
 
-import asyncio
+import socket
 import P2P_client_network as network
 from datetime import datetime
 from P2P_database import DataBaseClient
 from P2P_lib import Logger, Extentions
-from typing import Callable, List, Tuple, Coroutine
+from typing import Callable, List, Tuple
 
 
 class Client:
@@ -17,7 +17,7 @@ class Client:
         name: str = None
 
         _ip: str = None
-        _last_upgrade: datetime = None
+        _last_update: datetime = None
         _history: List[Tuple[str, datetime, str]] = None
         _login: str = None
 
@@ -26,7 +26,7 @@ class Client:
                 raise Exception("You should initialise Contact.database first!")
             self.name = name
             self._login = login
-            self._ip, self._last_upgrade = Client._Contact.database.search_ip_and_last_time(name)
+            self._ip, self._last_update = Client._Contact.database.search_ip_and_last_time(name)
             history = Client._Contact.database.search_messages(name)
             self._history = []
             for time, msg_type, text in history:
@@ -47,12 +47,12 @@ class Client:
             except network.ClientToClientException:
                 return False
 
-        def upgrade_ip(self, new_ip: str, upgrade_time: datetime) -> bool:
-            if upgrade_time <= self._last_upgrade:
+        def update_ip(self, new_ip: str, update_time: datetime) -> bool:
+            if update_time <= self._last_update:
                 return False
-            Client._Contact.database.update_ip(self.name, new_ip, upgrade_time)
+            Client._Contact.database.update_ip(self.name, new_ip, update_time)
             self._ip = new_ip
-            self._last_upgrade = upgrade_time
+            self._last_update = update_time
             self._connection = network.ClientToClient(self._login, self.name, self._ip)
             return True
 
@@ -67,22 +67,22 @@ class Client:
 
     class _Contact_dict(dict):
 
-        _create_new_contact_callback = None # : Callable[[str, str, datetime], Client._Contact] = None
+        _create_new_contact_callback = None
 
-        def __init__(self, create_new_contact): # : Callable[[str, str, datetime], Client._Contact]):
+        def __init__(self, create_new_contact):
             self._create_new_contact_callback = create_new_contact
             return super().__init__()
 
         def __getitem__(self, key):
             if type(key) == tuple:
                 ip = key[1]
-                upgrade_time = key[2]
+                update_time = key[2]
                 key = key[0]
             else:
                 ip = None
-                upgrade_time = None
+                update_time = None
             if key not in self.keys():
-                self[key] = self._create_new_contact_callback(key, ip, upgrade_time)
+                self[key] = self._create_new_contact_callback(key, ip, update_time)
             return super().__getitem__(key)
 
     login: str = None
@@ -94,86 +94,134 @@ class Client:
     _server: network.ClientToServer = None
     _contacts: _Contact_dict = None
     _listener: network.Listener = None
-    _connect_to_server: Coroutine = None
+    _need_registration: bool = None
 
     @Logger.logged("client")
     def __init__(self, login: str, password: str,
-                       on_receive_callback: Callable[[str, str, str], None],
-                       need_registration: bool=False):
+                 on_receive_callback: Callable[[str, str, str], None],
+                 need_registration: bool=False):
         self.login = login
         self._password = password
         self.on_receive_callback = on_receive_callback
+        self._need_registration = need_registration
         self._database = DataBaseClient(login + ".sqlite")
         self._database.init()
         self._Contact.database = self._database
-        server_endpoint = self._Contact.database.search_ip_and_last_time("server")[0]
-        if server_endpoint == "0.0.0.0":
-            server_endpoint = "127.0.0.1"   # DEBUG
-        else:
-            server_endpoint = server_endpoint[0]
-        self._server = network.ClientToServer(server_endpoint)
-        if need_registration:
-            self._connect_to_server = self._server.registration(self.login, self._password)
-        else:
-            self._connect_to_server = self._server.login(self.login, self.password)
 
         @Logger.logged("client")
-        def _add_new_contact(name: str, ip: str, upgrade_time: datetime) -> Client._Contact:
-            self._database.add_friend(name, ip, upgrade_time)
+        def _add_new_contact(name: str, ip: str, update_time: datetime) -> Client._Contact:
+            self._database.add_friend(name, ip, update_time)
             return Client._Contact(name, self.login)
 
         self._contacts = Client._Contact_dict(_add_new_contact)
+
         def _on_receive_callback(data: bytes, contact_login: str, contact_endpoint: str):
             message = Extentions.bytes_to_defstr(data)[0]
             time = datetime.now()
             self.contacts[contact_login, contact_endpoint, time].add_text_message(message, contact_login)
             self.on_receive_callback(contact_login, time, message)
 
-        def _upgrade_ip(name: str, ip: str):
+        def _update_ip(name: str, ip: str):
             time = datetime.now()
-            self._contacts[name, ip, time].upgrade_ip(ip, time)
+            self._contacts[name, ip, time].update_ip(ip, time)
 
-        self._listener = network.Listener(login, _on_receive_callback, 
-                                          _upgrade_ip, self._database)
+        self._listener = network.Listener(login, _on_receive_callback,
+                                          _update_ip, self._database)
+
+    async def _discover_server(self) -> bool:
+        internal_ip = socket.gethostbyname(socket.gethostname())
+        template_ip = internal_ip[:internal_ip.rfind(".") + 1]
+        for i in range(0, 256):
+            c = network.ClientToServer(f"{template_ip}{i}:3501")
+            try:
+                await c.get_IPs([])
+                self._server = c
+                self._database.add_friend("server", f"{template_ip}{i}:3501", datetime.now())
+                return True
+            except OSError:
+                continue
+        return False
+
+    async def _discover_contacts(self, names: List[str]) -> bool:
+        result = False
+        internal_ip = socket.gethostbyname(socket.gethostname())
+        template_ip = internal_ip[:internal_ip.rfind(".") + 1]
+        for i in range(0, 256):
+            if f"{template_ip}{i}" == internal_ip:
+                continue
+            c = network.ClientToClient("guest", "", f"{template_ip}{i}:3502")
+            try:
+                ips = await c.get_IPs(names)
+                for n, i in zip(names, ips):
+                    if i[0] == "0.0.0.0":
+                        continue
+                    if n == "server":
+                        if not result:
+                            self._server = network.ClientToServer(i[0])
+                            self._database.add_friend("server", *i)
+                            result = True
+                        elif self._database.get_ip_and_last_time("server")[1] < i[1]:
+                            self._server = network.ClientToServer(i[0])
+                            self._database.update_ip("server", *i)
+                    else:
+                        self._contacts[n].update_ip(*i)
+            except OSError:
+                continue
+        return result
 
     async def establish_connections(self) -> bool:
-        try:
-            await self._connect_to_server
-            self.is_connected = True
-        except network.ClientToServerException:
-            self.is_connected = False
         contacts_names = self._database.get_all_friends()
         for n in contacts_names:
             if n == "server":
                 continue
             self._contacts[n] = Client._Contact(n, self.login)
-        contacts_ips = await self._get_ips_by_names(contacts_names)
-        server_upgrade_time = self._database.search_ip_and_last_time("server")
-        if server_upgrade_time[0] != "0.0.0.0":
-            server_upgrade_time = server_upgrade_time[1]
+        server_endpoint = self._Contact.database.search_ip_and_last_time("server")[0]
+        if server_endpoint == "0.0.0.0":
+            if not await self._discover_server():
+                if not await self._discover_contacts():
+                    self._server = network.ClientToServer("0.0.0.0")
         else:
-            server_upgrade_time = None
+            server_endpoint = server_endpoint
+            self._server = network.ClientToServer(server_endpoint)
+        if self._need_registration:
+            try:
+                await self._server.registration(self.login, self._password)
+                self.is_connected = True
+            except network.ClientToServerException:
+                self.is_connected = False
+        else:
+            try:
+                await self._server.login(self.login, self._password)
+                self.is_connected = True
+            except network.ClientToServerException:
+                self.is_connected = False
+        contacts_ips = await self._get_ips_by_names(contacts_names)
+        server_update_time = self._database.search_ip_and_last_time("server")
+        if server_update_time[0] != "0.0.0.0":
+            server_update_time = server_update_time[1]
+        else:
+            server_update_time = None
         for n, i in zip(contacts_names, contacts_ips):
             if n == "server":
-                if (server_upgrade_time is None or
-                    i[1] != None and
-                    server_upgrade_time < i[1]):
+                if (server_update_time is None
+                    or i[1] is not None
+                    and server_update_time < i[1]):
                         self._database.update_ip("server", *i)
-                        server_upgrade_time = i[1]
+                        server_update_time = i[1]
                         self._server = network.ClientToServer(i[0])
                 continue
-            self._contacts[n].upgrade_ip(*i)
+            self._contacts[n].update_ip(*i)
         contacts_ips = await self._get_ips_by_names(contacts_names)
         for n, i in zip(contacts_names, contacts_ips):
             if n == "server":
-                if (server_upgrade_time is None or
-                    i[1] != None and
-                    server_upgrade_time < i[1]):
+                if (server_update_time is None
+                    or i[1] is not None
+                    and server_update_time < i[1]):
                         self._database.update_ip("server", *i)
-                        server_upgrade_time = i[1]
+                        server_update_time = i[1]
                         self._server = network.ClientToServer(i[0])
                 continue
-            self._contacts[n].upgrade_ip(*i)
+            self._contacts[n].update_ip(*i)
         await self._listener.listen()
         return self.is_connected
 
@@ -202,7 +250,7 @@ class Client:
     async def get_history(self, name: str) -> List[Tuple[str, datetime, str]]:
         if name not in self._contacts:
             ip, time = (await self._get_ips_by_names([name]))[0]
-            current_contact = self._contacts[name, ip, time]        
+            current_contact = self._contacts[name, ip, time]
         else:
             current_contact = self._contacts[name]
         return current_contact.get_history()
@@ -211,7 +259,7 @@ class Client:
         return [i.name for i in self._contacts]
 
     async def add_contact(self, name: str):
-        ip, time = await self._get_ips_by_names([name])[0]
+        ip, time = (await self._get_ips_by_names([name]))[0]
         self._contacts[name, ip, time]
 
     def delete_contact(self, name: str):
