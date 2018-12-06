@@ -20,8 +20,6 @@ class Logger:
         """
         Decorator intended to log unhandled exceptions in function.
         It invokes Logger.err_log().
-
-        location - Path to decorated function (<module>.<class>.<etc>).
         """
         def _logged(func, *args, **kwargs) -> Callable[[Any], Callable]:
             def wrapper(*args, **kwargs) -> Callable[[Any], Any]:
@@ -41,7 +39,8 @@ class Logger:
         message - Message to logging.
         source - Function, where exception occured
         mode - Log file will be named "<mode>.log"; default is "server".
-        file_only - if True, message will not output to console; default is False.
+        file_only - if True, message will not be outputed to console; default is False.
+        console_only - if True, message will not be outputed to file; default is False.
 
         Log string is "[<time.asctime()>] : Unhandled exception in <source>: <message>".
         """

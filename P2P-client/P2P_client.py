@@ -21,6 +21,7 @@ class Client:
         _history: List[Tuple[str, datetime, str]] = None
         _login: str = None
 
+        @Logger.logged("client")
         def __init__(self, name: str, login: str):
             if Client._Contact.database is None:
                 raise Exception("You should initialise Contact.database first!")
@@ -31,14 +32,16 @@ class Client:
             self._history = []
             for time, msg_type, text in history:
                 if msg_type:
-                    self._history.append(time, text)
-            self._connection = network.ClientToClient(login, name, self._ip)
+                    self._history.append((None, time, text))   # DEBUG
+            self.connection = network.ClientToClient(login, name, self._ip)
 
+        @Logger.logged("client")
         def add_text_message(self, message: str, sender: str):
             time = datetime.now()
             Client._Contact.database.add_message(self.name, time, True, message)
-            self._history.append(sender, time, message)
+            self._history.append((sender, time, message))
 
+        @Logger.logged("client")
         async def send_text_message(self, message: str) -> bool:
             try:
                 await self.connection.send_text_message(message)
@@ -46,33 +49,37 @@ class Client:
                 return True
             except network.ClientToClientException:
                 return False
-
+            
+        @Logger.logged("client")
         def update_ip(self, new_ip: str, update_time: datetime) -> bool:
-            if update_time <= self._last_update:
+            if new_ip is None or update_time <= self._last_update:
                 return False
             Client._Contact.database.update_ip(self.name, new_ip, update_time)
             self._ip = new_ip
             self._last_update = update_time
-            self._connection = network.ClientToClient(self._login, self.name, self._ip)
+            self.connection = network.ClientToClient(self._login, self.name, self._ip)
             return True
-
+        
+        @Logger.logged("client")
         def get_history(self) -> List[Tuple[str, datetime, str]]:
             return self._history
 
         async def get_IPs(self, names: List[str]) -> List[Tuple[str, datetime]]:
             try:
-                return await self._connection.get_IPs(names)
+                return await self.connection.get_IPs(names)
             except network.ClientToClientException:
                 return [(None, None)] * len(names)
 
     class _Contact_dict(dict):
 
         _create_new_contact_callback = None
-
+        
+        @Logger.logged("client")
         def __init__(self, create_new_contact):
             self._create_new_contact_callback = create_new_contact
             return super().__init__()
-
+        
+        @Logger.logged("client")
         def __getitem__(self, key):
             if type(key) == tuple:
                 ip = key[1]
@@ -98,8 +105,19 @@ class Client:
 
     @Logger.logged("client")
     def __init__(self, login: str, password: str,
-                 on_receive_callback: Callable[[str, str, str], None],
+                 on_receive_callback: Callable[[str, datetime, str], None],
                  need_registration: bool=False):
+        """
+        Класс, инкапсулирующий всю логику работы клиента.
+
+        login: str - логин пользователя.
+        password: str - пароль пользователя.
+        on_receive_callback: function(str, datetime, str) - функция, которая будет вызвана
+        при получении нового сообщения; должна принимать три аргумента: логин отправителя,
+        время получения и текст сообщения.
+        need_registration: bool - True для создания и регистрации на сервере
+        нового пользователя; по умолчанию False.
+        """
         self.login = login
         self._password = password
         self.on_receive_callback = on_receive_callback
@@ -114,30 +132,34 @@ class Client:
             return Client._Contact(name, self.login)
 
         self._contacts = Client._Contact_dict(_add_new_contact)
-
+        
+        @Logger.logged("client")
         def _on_receive_callback(data: bytes, contact_login: str, contact_endpoint: str):
             message = Extentions.bytes_to_defstr(data)[0]
             time = datetime.now()
-            self.contacts[contact_login, contact_endpoint, time].add_text_message(message, contact_login)
+            self._contacts[contact_login, contact_endpoint, time].add_text_message(message, contact_login)
             self.on_receive_callback(contact_login, time, message)
-
+            
+        @Logger.logged("client")
         def _update_ip(name: str, ip: str):
             time = datetime.now()
             self._contacts[name, ip, time].update_ip(ip, time)
 
         self._listener = network.Listener(login, _on_receive_callback,
                                           _update_ip, self._database)
-
+    
+    @Logger.logged("client")
     async def _discover_server(self) -> bool:
         internal_ip = socket.gethostbyname(socket.gethostname())
         template_ip = internal_ip[:internal_ip.rfind(".") + 1]
         for i in range(0, 256):
             c = network.ClientToServer(f"{template_ip}{i}:3501")
-            print(f"{template_ip}{i}:3501")
+            Logger.log(f"Trying to find server at {template_ip}{i}:3501...", "client")
             try:
                 await c.get_IPs([])
                 self._server = c
                 self._database.add_friend("server", f"{template_ip}{i}:3501", datetime.now())
+                Logger.log(f"Server was found at {template_ip}{i}:3501.", "client")
                 return True
             except network.ClientToServerException as ex:
                 if ex.code == 251:
@@ -145,6 +167,7 @@ class Client:
                 raise ex
         return False
 
+    @Logger.logged("client")
     async def _discover_contacts(self, names: List[str]) -> bool:
         result = False
         internal_ip = socket.gethostbyname(socket.gethostname())
@@ -153,8 +176,10 @@ class Client:
             if f"{template_ip}{i}" == internal_ip:
                 continue
             c = network.ClientToClient("guest", "", f"{template_ip}{i}:3502")
+            Logger.log(f"Trying to find client at {template_ip}{i}:3502...", "client")
             try:
                 ips = await c.get_IPs(names)
+                Logger.log(f"Client was found at {template_ip}{i}:3502.", "client")
                 for n, i in zip(names, ips):
                     if i[0] == "0.0.0.0":
                         continue
@@ -172,7 +197,15 @@ class Client:
                 continue
         return result
 
+    @Logger.logged("client")
     async def establish_connections(self) -> bool:
+        """
+        Асинхронный метод, устанавливающий соединение с сервером и пользователями
+        из списка контактов и обновляющий IP-адреса. Должен быть однократно вызван
+        до использования любого другого метода класса Client кроме, разве что, конструктора.
+
+        Возвращаемое значение указывает, удалось ли установить соединение с сервером.
+        """
         contacts_names = self._database.get_all_friends()
         for n in contacts_names:
             if n == "server":
@@ -234,6 +267,7 @@ class Client:
         await self._listener.listen()
         return self.is_connected
 
+    @Logger.logged("client")
     async def _get_ips_by_names(self, names: List[str]) -> List[Tuple[str, datetime]]:
         try:
             result = await self._server.get_IPs(names)
@@ -243,7 +277,7 @@ class Client:
             else:
                 raise ex
         for c in self._contacts:
-            client_result = await c.get_IPs(names)
+            client_result = await self._contacts[c].get_IPs(names)
             for i in range(0, len(names)):
                 if (result[i][0] is not None and
                     client_result[i][0] is not None and
@@ -251,7 +285,17 @@ class Client:
                         result[i] = client_result[i]
         return result
 
+    @Logger.logged("client")
     async def send_message(self, name: str, message: str) -> bool:
+        """
+        Асинхронный метод для отправки указанного текстового сообщения указанному пользователю.
+        Если пользователя нет в списке контактов, то он будет туда добавлен.
+
+        name: str - логин получателя сообщения.
+        message: str - текст отправляемого сообщения.
+
+        Возвращаемое значение указывает, было ли доставлено сообщение.
+        """
         if name not in self._contacts:
             ip, time = (await self._get_ips_by_names([name]))[0]
             current_contact = self._contacts[name, ip, time]
@@ -259,7 +303,16 @@ class Client:
             current_contact = self._contacts[name]
         return await current_contact.send_text_message(message)
 
+    @Logger.logged("client")
     async def get_history(self, name: str) -> List[Tuple[str, datetime, str]]:
+        """
+        Асинхронный метод, позволяющий получить историю переписки с заданным пользователем.
+
+        name: str - логин пользователя, диалог с которым должен быть получен.
+
+        Возвращаемое значение является списком кортежей вида
+        (отправитель, время, текст), описывающих каждое сообщение.
+        """
         if name not in self._contacts:
             ip, time = (await self._get_ips_by_names([name]))[0]
             current_contact = self._contacts[name, ip, time]
@@ -267,13 +320,32 @@ class Client:
             current_contact = self._contacts[name]
         return current_contact.get_history()
 
+    @Logger.logged("client")
     def get_contacts_list(self) -> List[str]:
+        """
+        Метод для получения списка контактов.
+
+        Возвращаемое значение - список строк, каждая из которых
+        является логином пользователя из списка контактов.
+        """
         return [i.name for i in self._contacts]
 
+    @Logger.logged("client")
     async def add_contact(self, name: str):
+        """
+        Метод, позволяющий добавить пользователя в список контактов.
+    
+        name: str - логин добавляемого пользователя.
+        """
         ip, time = (await self._get_ips_by_names([name]))[0]
         self._contacts[name, ip, time]
 
+    @Logger.logged("client")
     def delete_contact(self, name: str):
+        """
+        Метод, позволяющий удалить пользователя из списка контактов.
+    
+        name: str - логин удаляемого пользователя.
+        """
         self._contacts.pop(name)
         self._database.del_friend(name)

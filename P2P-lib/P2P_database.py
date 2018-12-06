@@ -111,7 +111,7 @@ class DataBaseClient:
 
     # 1.2.
     # Нужно ли другу кидать клиента?
-    def add_friend(self, login_fr: str, ip_fr: str)->bool:
+    def add_friend(self, login_fr: str, ip_fr: str, a)->bool:
         cur = self._db_conn.cursor()
         cur.execute("INSERT INTO friends (friend, ip, last_time) VALUES (?, ?, ?);", (login_fr, ip_fr, datetime.now()))
         _status = cur.rowcount == 1

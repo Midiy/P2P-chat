@@ -17,7 +17,7 @@ async def _get_data(reader: asyncio.StreamReader, timeout: int=5) -> (int, bytes
         if data:
             return data
         else:
-            raise ConnectionAbortedError()
+            raise ConnectionResetError()
     length, _ = Extentions.bytes_to_int(await _l_get_data(4))
     result = await _l_get_data(length)
     return (result[0], result[1:])
@@ -42,11 +42,7 @@ async def _on_connect(reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     Logger.log(f"Accepted connection from {client_ip}:{client_port}.")
     while True:
         try:
-            try:
-                code, data = await _get_data(reader, timeout)
-            except ConnectionResetError:
-                Logger.log(f"Connection from {client_ip}:{client_port} closed by peer.")
-                break
+            code, data = await _get_data(reader, timeout)
             if code == 0:   # Ping
                 await _send_data(writer, 0)
                 Logger.log(f"Ping was sent to {client_ip}:{client_port}.")
@@ -130,7 +126,7 @@ async def _on_connect(reader: asyncio.StreamReader, writer: asyncio.StreamWriter
             else:
                 msg, _ = Extentions.bytes_to_str(Extentions.int_to_bytes(code) + data)
                 Logger.log(f"Following message was resieved from {client_ip}:{client_port}:\n{msg}")
-        except ConnectionAbortedError:
+        except ConnectionResetError:
             Logger.log(f"Connection from {client_ip}:{client_port} closed by peer.")
             break
         except TimeoutError:
@@ -138,7 +134,7 @@ async def _on_connect(reader: asyncio.StreamReader, writer: asyncio.StreamWriter
             break
     writer.close()
 
-
+@Logger.logged()
 async def _wait_for_interrupt():
     while True:
         await asyncio.sleep(1)

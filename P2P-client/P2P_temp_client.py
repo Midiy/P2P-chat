@@ -65,9 +65,9 @@ async def main():
                 else:
                     system("clear")
                 current_contact = arg
-                print(await client.get_history(current_contact))
-            elif command == "$refresh":
-                await asyncio.sleep(0.5)
+                history = await client.get_history(current_contact)
+                for sender, time, message in history:
+                    print(f"[{time.strftime('%d.%m.%Y %T')} {sender}]: {message}")
             elif command == "$exit":
                 break
             else:

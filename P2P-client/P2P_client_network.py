@@ -40,7 +40,7 @@ class Listener:
             if data:
                 return data
             else:
-                raise ConnectionAbortedError()
+                raise ConnectionResetError()
 
         length, _ = Extentions.bytes_to_int(await _l_get_data(4))
         result = await _l_get_data(length)
@@ -70,7 +70,7 @@ class Listener:
                         Logger.log(f"Ping was sent to {client_ip}:{client_port}.", "client")
                     elif code == 2:   # Login
                         received_login, data = Extentions.bytes_to_defstr(data)
-                        if data == bytes():
+                        if len(data) == 0:
                             preferred_port = "3502"
                         else:
                             preferred_port, _ = Extentions.bytes_to_defstr(data)
@@ -88,11 +88,11 @@ class Listener:
                         while login_count > 0:
                             requested_login, data = Extentions.bytes_to_defstr(data)
                             if requested_login == "server":
-                                if self._server_login == []:
+                                if self._server_endpoint == []:
                                     requested_ip = ""
                                     requested_time = ""
                                 else:
-                                    requested_ip, requested_time = self._server_login
+                                    requested_ip, requested_time = self._server_endpoint
                                     requested_time = requested_time.strftime("%T %d.%m.%Y")
                                 requested_line = (Extentions.defstr_to_bytes(requested_ip) +
                                                   Extentions.defstr_to_bytes(requested_time))
@@ -120,7 +120,7 @@ class Listener:
                     elif code == 5:   # Text message
                         if client_login is not None and client_login != "guest":
                             self.on_receive_msg_callback(data, client_login, client_ip + ":" + preferred_port)
-                            await self._send_data(5)
+                            await self._send_data(writer, 5)
                             Logger.log(f"Message from '{client_login}' ({client_ip}:{client_port}) was recieved.")
                         else:
                             await self._send_data(writer, 253, Extentions.defstr_to_bytes("You should login first."))
@@ -129,7 +129,7 @@ class Listener:
                     else:
                         msg, _ = Extentions.bytes_to_str(Extentions.int_to_bytes(code) + data)
                         Logger.log(f"Following message was resieved from {client_ip}:{client_port}:\n{msg}", "client")
-                except ConnectionAbortedError:
+                except ConnectionResetError:
                     Logger.log(f"Connection from {client_ip}:{client_port} closed by peer.", "client")
                     break
                 except TimeoutError:
@@ -155,11 +155,13 @@ class _IException(Exception):
     message: str = None
     code: int = None
 
+    @Logger.logged("client")
     def __init__(self, message, code):
         super().__init__(message)
         self.message = message
         self.code = code
 
+    @Logger.logged("client")
     def __str__(self):
         return self.message
 
@@ -198,7 +200,7 @@ class _IConnection:
             if data:
                 return data
             else:
-                raise ConnectionAbortedError()
+                raise ConnectionResetError()
 
         length, _ = Extentions.bytes_to_int(await _l_get_data(4))
         result = await _l_get_data(length)
@@ -216,10 +218,10 @@ class _IConnection:
     async def _check_connection(self, timeout: int=5) -> bool:
         if (self.__class__ == _IConnection):
             self._raise_not_implemented_error()
-        await self._send_data(0)
         try:
+            await self._send_data(0)
             code, _ = await self._get_data(timeout)
-        except ConnectionAbortedError:
+        except (ConnectionResetError, TimeoutError):
             return False
         return code == 0
 
@@ -239,11 +241,14 @@ class _IConnection:
                 return
         self._raise_customised_exception("Couldn't (re)create connection with ({self._host}:{self._port}).", 251)
 
+
     @staticmethod
+    @Logger.logged("client")
     def _raise_customised_exception(message: str, code: int):
         raise _IException(message, code)
 
     @staticmethod
+    @Logger.logged("client")
     def _raise_not_implemented_error():
         raise NotImplementedError("'_IConnection' was conceived as abstract." +
                                   "\nYou mustn't use it directly; instead, inherit from it.")
@@ -259,12 +264,14 @@ class ClientToServer(_IConnection):
     def __init__(self, host: str, port: int=3501):
         super().__init__(host, port)
 
+
     @staticmethod
+    @Logger.logged("client")
     def _raise_customised_exception(message: str, code: int):
         raise ClientToServerException(message, code)
 
     @Logger.logged("client")
-    async def registration(self, login: str, password: str):
+    async def registration(self, login: str, password: str) -> bool:
         await self._recreate_connection()
         bts_login = Extentions.defstr_to_bytes(login)
         bts_password = Extentions.defstr_to_bytes(password)
@@ -298,12 +305,12 @@ class ClientToServer(_IConnection):
         result = []
         count, data = Extentions.bytes_to_int(data)
         while count > 0:
-            ip, data = Extentions.defstr_to_bytes(data)
-            time, data = Extentions.defstr_to_bytes(data)
+            ip, data = Extentions.bytes_to_defstr(data)
+            time, data = Extentions.bytes_to_defstr(data)
             if ip == "":
                 result.append((None, None))
             else:
-                result.append((ip, datetime.strptime(time, "%T %d.%m.%Y")))
+                result.append((ip, datetime.strptime(time, "%H:%M:%S %d.%m.%Y")))
             count -= 1
         Logger.log(f"Requested IPs were received.", "client")
         return result
@@ -337,15 +344,18 @@ class ClientToClient(_IConnection):
 
     @Logger.logged("client")
     async def _recreate_connection(self):
-        if await super()._recreate_connection():
+        try:
+            await super()._recreate_connection()
             await self._send_data(2, Extentions.defstr_to_bytes(self.login))
             code, data = await self._get_data()
-            if code == 2 and (Extentions.bytes_to_defstr(code)[0] == self.client_login or self.login == "guest"):
+            if code == 2 and (Extentions.bytes_to_defstr(data)[0] == self.client_login or self.login == "guest"):
                 Logger.log(f"Connection with '{self.client_login}' ({self._host}:{self._port}) was established.", "client")
                 return
-        self._raise_customised_exception("Couldn't (re)create connection with '{self.client_login}' ({self._host}:{self._port}).", 251)
+        except ClientToServerException as ex:
+            raise ex
 
     @staticmethod
+    @Logger.logged("client")
     def _raise_customised_exception(message: str, code: int):
         raise ClientToClientException(message, code)
 
@@ -369,13 +379,16 @@ class ClientToClient(_IConnection):
         if code != 3:
             self._raise_customised_exception(Extentions.bytes_to_defstr(data)[0], code)
         result = []
-        for i in range(0, len(logins)):
+        received_length, data = Extentions.bytes_to_int(data)
+        if received_length != len(logins):
+            self._raise_customised_exception("IP-update request was failed!", -1)
+        for i in range(0, received_length):
             requested_ip, data = Extentions.bytes_to_defstr(data)
             requested_time, data = Extentions.bytes_to_defstr(data)
             if requested_ip == "":
                 result.append((None, None))
             else:
-                result.append((requested_ip, datetime.strptime(requested_time, "%T %d.%m.%Y")))
+                result.append((requested_ip, datetime.strptime(requested_time, "%H:%M:%S %d.%m.%Y")))
         return result
 
     @Logger.logged("client")
