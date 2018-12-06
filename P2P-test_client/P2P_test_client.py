@@ -31,9 +31,8 @@ def _send_data(sock: socket, code: int, data: bytes = bytes()):
 
 @Logger.logged("test_client")
 def main():
-    remove("test_client.log")
     sock: socket = socket()
-    sock.connect(("localhost", 3502))
+    sock.connect(("192.168.43.168", 3501))
     Logger.log("Connection with localhost:3501 was established.", "test_client")
     _send_data(sock, 0)
     Logger.log("Ping was successfully sent.", "test_client")

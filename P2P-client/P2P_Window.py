@@ -32,10 +32,10 @@ class P2PWindow(Tk):
         self._friends.event_generate("<<ListboxSelect>>")
 
         self._loop = asyncio.get_event_loop()
-        # self._loop.run_until_complete(self._client.establish_connections())
+        self._loop.run_until_complete(self._client.establish_connections())
 
-        self._listner = threading.Thread(target=self.start_listner)
-        self._listner.start()
+        # self._listner = threading.Thread(target=self.start_listner)
+        # self._listner.start()
 
     def init_ui(self):
         self.title('P2P-chat')
@@ -84,7 +84,7 @@ class P2PWindow(Tk):
 
     def p2p_exit(self):
         self._exiting = True
-        self._listner.join()
+        # self._listner.join()
         exit()
 
     def mes_send_1(self):
@@ -139,15 +139,17 @@ class P2PWindow(Tk):
     def get_friend(self, mess) -> str:
         result = StringVar()
         top = Toplevel(self)
+        top.geometry('350x200')
         top.title(mess)
-        txt_name = Entry(top).grid(row=0, column=0, columnspan=2)
+        txt_name = Entry(top, width=50)
+        txt_name.grid(row=0, column=0, columnspan=2)
 
-        def ok_cmd(result_2):
-            result_2.set(txt_name.get(0, END))
+        def ok_cmd():
+            result.set(txt_name.get())
             top.destroy()
 
-        Button(top, text='OK', command=ok_cmd(result)).grid(row=1, column=0)
-        Button(top, text='Cancel', command=top.destroy()).grid(row=1, column=1)
+        Button(top, text='OK', command=ok_cmd).grid(row=2, column=0)
+        Button(top, text='Cancel', command=top.destroy).grid(row=2, column=1)
         top.transient(self)
         top.grab_set()
         top.focus_set()
@@ -157,7 +159,7 @@ class P2PWindow(Tk):
     def start_listner(self):
         while not self._exiting:
             # Код ждун
-            asyncio.sleep(0.05)
+            self._loop.run_until_complete(asyncio.sleep(0.05))
 
 
 def p2p_configure(conf):
@@ -211,7 +213,7 @@ if status != 'None':
     if status == 'True':
         database = DataBaseClient(config[config.default_section]['login'] + ".sqlite")
         database.init()
-        database.update_ip('server', config[config.default_section]['server'], datetime.now())
+        # database.update_ip('server', config[config.default_section]['server'], datetime.now())
         del database
     main_window = P2PWindow(config)
     main_window.mainloop()
