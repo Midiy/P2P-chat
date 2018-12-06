@@ -119,6 +119,7 @@ class P2PWindow(Tk):
     def add_friend(self):
         friend_log = self.get_friend('Введите имя нового друга:')
         if len(friend_log) != 0:
+            self._lst.append(friend_log)
             self._loop.run_until_complete(self._client.add_contact(friend_log))
             self._friends.insert(END, friend_log)
             index = self._friends.get(0, "end").index(friend_log)
@@ -128,6 +129,7 @@ class P2PWindow(Tk):
     def del_friend(self):
         friend_log = self.get_friend('Введите имя удаляемого друга:')
         if (len(friend_log) != 0) and (friend_log in self._client.get_contacts_list()):
+            self._lst.remove(friend_log)
             self._loop.run_until_complete(self._client.delete_contact(friend_log))
             index = self._friends.get(0, "end").index(friend_log)
             self._friends.remove(index)
