@@ -24,9 +24,9 @@ class P2PWindow(Tk):
         self._client = Client(conf[conf.default_section]['login'], conf[conf.default_section]['password'],
                               self.on_receive_msg_callback, bool(conf[conf.default_section]['registration'] == 'True'))
 
-        lst = self._client.get_contacts_list()
+        self._lst = self._client.get_contacts_list()
         # lst = ['friend_1', 'friend_2']
-        for i in lst:
+        for i in self._lst:
             self._friends.insert(END, i)
         self._friends.select_set(0)
         self._friends.event_generate("<<ListboxSelect>>")
@@ -166,6 +166,11 @@ class P2PWindow(Tk):
     def context_switching(self):
         self._loop.run_until_complete(asyncio.sleep(0.05))
         self.after(500, self.context_switching)
+        lst = self._client.get_contacts_list()
+        for i in lst:
+            if i not in self._lst:
+                self._friends.insert(END, i)
+        self._lst = lst
 
 
 def p2p_configure(conf):
