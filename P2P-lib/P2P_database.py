@@ -98,7 +98,7 @@ class DataBaseClient:
                 return False
         cur.execute("SELECT COUNT(sql) FROM sqlite_master WHERE type = 'table' AND name = 'history';")
         if cur.fetchone()[0] == 0:
-            cur.execute('CREATE TABLE history ( friend STRING, time DATETIME, type BOOL, message BLOB);')
+            cur.execute('CREATE TABLE history ( friend STRING, time DATETIME, type BOOL, message BLOB, who BOOL);')
             self._db_conn.commit()
             if cur.rowcount == 0:
                 return False
@@ -111,9 +111,9 @@ class DataBaseClient:
 
     # 1.2.
     # Нужно ли другу кидать клиента?
-    def add_friend(self, login_fr: str, ip_fr: str, a)->bool:
+    def add_friend(self, login_fr: str, ip_fr: str, d_time)->bool:
         cur = self._db_conn.cursor()
-        cur.execute("INSERT INTO friends (friend, ip, last_time) VALUES (?, ?, ?);", (login_fr, ip_fr, datetime.now()))
+        cur.execute("INSERT INTO friends (friend, ip, last_time) VALUES (?, ?, ?);", (login_fr, ip_fr, d_time))
         _status = cur.rowcount == 1
         cur.close()
         self._db_conn.commit()
@@ -162,10 +162,10 @@ class DataBaseClient:
                 return '0.0.0.0', datetime(MINYEAR, 1, 1)
         return '0.0.0.0', datetime(MINYEAR, 1, 1)
 
-    def add_message(self, login_fr: str, time, type_m: bool, mess)->bool:
+    def add_message(self, login_fr: str, time, type_m: bool, mess, who: bool)->bool:
         cur = self._db_conn.cursor()
-        cur.execute("INSERT INTO history (friend, time, type, message) VALUES (?, ?, ?, ?);",
-                    (login_fr, time, type_m, mess))
+        cur.execute("INSERT INTO history (friend, time, type, message, who) VALUES (?, ?, ?, ?, ?);",
+                    (login_fr, time, type_m, mess, who))
         _status = cur.rowcount == 1
         cur.close()
         self._db_conn.commit()
@@ -179,7 +179,7 @@ class DataBaseClient:
 
     def search_messages(self, login_fr: str):
         cur = self._db_conn.cursor()
-        cur.execute("SELECT time, type, message FROM history WHERE friend = ? ORDER BY time ;", (login_fr,))
+        cur.execute("SELECT time, type, message, who FROM history WHERE friend = ? ORDER BY time ;", (login_fr,))
         result = cur.fetchall()
         cur.close()
         return result

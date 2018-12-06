@@ -57,9 +57,9 @@ class P2PDataBaseTest(unittest.TestCase):
         db = DataBaseClient("test.sqlite")
 
         self.assertTrue(db.init())
-        self.assertTrue(db.add_friend('login', '222.222.222.222'))
-        self.assertTrue(db.add_friend('login2', '111.111.111.111'))
-        self.assertTrue(db.add_friend('login55', '232.232.232.232'))
+        self.assertTrue(db.add_friend('login', '222.222.222.222', datetime.now()))
+        self.assertTrue(db.add_friend('login2', '111.111.111.111', datetime.now()))
+        self.assertTrue(db.add_friend('login55', '232.232.232.232', datetime.now()))
         self.assertTrue(db.del_friend('login55'))
         lst = db.get_all_friends()
         self.assertEqual(len(lst), 2)
@@ -89,14 +89,14 @@ class P2PDataBaseTest(unittest.TestCase):
         time15 = datetime(2018, 12, 15)
         time10 = datetime(2018, 12, 10)
         time13 = datetime(2018, 12, 13)
-        self.assertTrue(db.add_message('login', time10, True, 'message 1'))
-        self.assertTrue(db.add_message('login2', time13, True, ':-D'))
-        self.assertTrue(db.add_message('login2', time15, False, '<<^_^>>'))
+        self.assertTrue(db.add_message('login', time10, True, 'message 1', True))
+        self.assertTrue(db.add_message('login2', time13, True, ':-D', False))
+        self.assertTrue(db.add_message('login2', time15, False, '<<^_^>>', True))
         db.del_messages(time13)
 
         self.assertEqual(db.search_messages('login'), [])
         self.assertEqual(db.search_messages('login2'),
-                         [('2018-12-13 00:00:00', True, ':-D'), ('2018-12-15 00:00:00', False, '<<^_^>>')])
+                         [('2018-12-13 00:00:00', True, ':-D', 0), ('2018-12-15 00:00:00', False, '<<^_^>>', 1)])
 
         del db
         db1 = DataBaseClient("test.sqlite")

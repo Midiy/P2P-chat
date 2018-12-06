@@ -106,7 +106,9 @@ class P2PWindow(Tk):
         self._current_friend = w.get(index)
         self._messages.config(state=NORMAL)
         self._messages.delete('1.0', END)
-        self._messages.insert(END, self._loop.run_until_complete(self._client.get_history(self._current_friend)))
+        mes_gis = self._loop.run_until_complete(self._client.get_history(self._current_friend))
+        for i in mes_gis:
+            self._messages.insert(END, i[-1])
         self._messages.config(state=DISABLED)
 
     def on_receive_msg_callback(self, friend, time, mes):
