@@ -339,7 +339,6 @@ class Client:
         """
         ip, time = (await self._get_ips_by_names([name]))[0]
         self._contacts[name, ip, time]
-        print("gsa")
 
     @Logger.logged("client")
     def delete_contact(self, name: str):
