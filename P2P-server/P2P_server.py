@@ -161,7 +161,6 @@ def main():
     finally:
         server.close()
         loop.close()
-        del _database
-
 
 main()
+del _database

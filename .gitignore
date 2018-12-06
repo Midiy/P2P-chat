@@ -266,3 +266,4 @@ __pycache__/
 
 # User-defined
 *_build
+*.ini
