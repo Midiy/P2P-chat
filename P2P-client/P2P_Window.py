@@ -108,7 +108,7 @@ class P2PWindow(Tk):
         self._messages.delete('1.0', END)
         mes_gis = self._loop.run_until_complete(self._client.get_history(self._current_friend))
         for i in mes_gis:
-            self._messages.insert(END, i[-1])
+            self._messages.insert(END, i[-1] + '\n')
         self._messages.config(state=DISABLED)
 
     def on_receive_msg_callback(self, friend, time, mes):
@@ -134,8 +134,11 @@ class P2PWindow(Tk):
             self._lst.remove(friend_log)
             self._client.delete_contact(friend_log)
             index = self._friends.get(0, "end").index(friend_log)
-            self._friends.remove(index)
+            self._friends.delete(index)
             if friend_log == self._current_friend:
+                self._messages.config(state=NORMAL)
+                self._messages.delete('1.0', END)
+                self._messages.config(state=DISABLED)
                 self._friends.select_set(0)
                 self._friends.event_generate("<<ListboxSelect>>")
 
