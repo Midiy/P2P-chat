@@ -22,7 +22,7 @@ class P2PWindow(Tk):
         self.init_ui()
 
         self._client = Client(conf[conf.default_section]['login'], conf[conf.default_section]['password'],
-                              self.on_receive_msg_callback, bool(conf[conf.default_section]['registration']))
+                              self.on_receive_msg_callback, bool(conf[conf.default_section]['registration'] == 'True'))
 
         lst = self._client.get_contacts_list()
         # lst = ['friend_1', 'friend_2']
@@ -36,6 +36,8 @@ class P2PWindow(Tk):
 
         # self._listner = threading.Thread(target=self.start_listner)
         # self._listner.start()
+
+        self.context_switching()
 
     def init_ui(self):
         self.title('P2P-chat')
@@ -156,10 +158,14 @@ class P2PWindow(Tk):
         top.wait_window()
         return result.get()
 
-    def start_listner(self):
-        while not self._exiting:
-            # Код ждун
-            self._loop.run_until_complete(asyncio.sleep(0.05))
+    # def start_listner(self):
+    #     while not self._exiting:
+    #         # Код ждун
+    #         self._loop.run_until_complete(asyncio.sleep(0.05))
+
+    def context_switching(self):
+        self._loop.run_until_complete(asyncio.sleep(0.05))
+        self.after(500, self.context_switching)
 
 
 def p2p_configure(conf):
