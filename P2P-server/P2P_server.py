@@ -100,7 +100,7 @@ async def _on_connect(reader: asyncio.StreamReader, writer: asyncio.StreamWriter
                         requested_time = ""
                     else:
                         requested_ip, requested_time = tmp
-                        requested_time = requested_time.strftime("%T %d.%m.%Y")
+                        requested_time = requested_time.strftime("%H:%M:%S.%f %d.%m.%Y")
                     requested_line = (Extentions.defstr_to_bytes(requested_ip) +
                                       Extentions.defstr_to_bytes(requested_time))
                     ips += requested_line

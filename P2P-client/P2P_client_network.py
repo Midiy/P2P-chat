@@ -93,13 +93,13 @@ class Listener:
                                     requested_time = ""
                                 else:
                                     requested_ip, requested_time = self._server_endpoint
-                                    requested_time = requested_time.strftime("%T %d.%m.%Y")
+                                    requested_time = requested_time.strftime("%H:%M:%S.%f %d.%m.%Y")
                                 requested_line = (Extentions.defstr_to_bytes(requested_ip) +
                                                   Extentions.defstr_to_bytes(requested_time))
                                 ips += requested_line
                             elif requested_login == self.login:
                                 requested_ip = socket.gethostbyname(socket.gethostname())
-                                requested_time = datetime.now().strftime("%T %d.%m.%Y")
+                                requested_time = datetime.now().strftime("%H:%M:%S.%f %d.%m.%Y")
                                 requested_line = (Extentions.defstr_to_bytes(requested_ip) +
                                                   Extentions.defstr_to_bytes(requested_time))
                                 ips += requested_line
@@ -110,7 +110,7 @@ class Listener:
                                     requested_time = ""
                                 else:
                                     requested_ip, requested_time = tmp
-                                    requested_time = requested_time.strftime("%T %d.%m.%Y")
+                                    requested_time = requested_time.strftime("%H:%M:%S.%f %d.%m.%Y")
                                 requested_line = (Extentions.defstr_to_bytes(requested_ip) +
                                                   Extentions.defstr_to_bytes(requested_time))
                                 ips += requested_line
@@ -310,7 +310,7 @@ class ClientToServer(_IConnection):
             if ip == "":
                 result.append((None, None))
             else:
-                result.append((ip, datetime.strptime(time, "%H:%M:%S %d.%m.%Y")))
+                result.append((ip, datetime.strptime(time, "%H:%M:%S.%f %d.%m.%Y")))
             count -= 1
         Logger.log(f"Requested IPs were received.", "client")
         return result
@@ -388,7 +388,7 @@ class ClientToClient(_IConnection):
             if requested_ip == "":
                 result.append((None, None))
             else:
-                result.append((requested_ip, datetime.strptime(requested_time, "%H:%M:%S %d.%m.%Y")))
+                result.append((requested_ip, datetime.strptime(requested_time, "%H:%M:%S.%f %d.%m.%Y")))
         return result
 
     @Logger.logged("client")

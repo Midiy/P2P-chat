@@ -38,7 +38,7 @@ async def main():
     current_contact = None
 
     def _on_receive(sender: str, time: datetime, message: str):
-        time = time.strftime("%d.%m.%Y %T")
+        time = time.strftime("%d.%m.%Y %H:%M:%S.%f")
         if current_contact == sender:
             print(f"[{time} {sender}]: {message}")
         else:
@@ -54,7 +54,7 @@ async def main():
                 print("You should use '$gotodialog <username>' first")
             else:
                 if await client.send_message(current_contact, line):
-                    print(f"[{datetime.now().strftime('%d.%m.%Y %T')} {login}]: {line}")
+                    print(f"[{datetime.now().strftime('%d.%m.%Y %H:%M:%S.%f')} {login}]: {line}")
                 else:
                     print(f"Message\n'{line}'\nwasn't sent. Try again.")
         else:
@@ -67,7 +67,7 @@ async def main():
                 current_contact = arg
                 history = await client.get_history(current_contact)
                 for sender, time, message in history:
-                    print(f"[{time.strftime('%d.%m.%Y %T')} {sender}]: {message}")
+                    print(f"[{time.strftime('%d.%m.%Y %H:%M:%S.%f')} {sender}]: {message}")
             elif command == "$exit":
                 break
             else:
