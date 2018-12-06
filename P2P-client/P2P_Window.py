@@ -2,8 +2,11 @@ from tkinter import *
 from tkinter import scrolledtext, Menu
 import asyncio
 import configparser
+import threading
+from datetime import datetime
 sys.path.append('../P2P-lib')
 from P2P_client import Client
+from P2P_database import DataBaseClient
 
 
 class P2PWindow(Tk):
@@ -14,24 +17,25 @@ class P2PWindow(Tk):
         self._friends = None
         self._messages = None
         self._current_friend = None
+        self._exiting = False
 
         self.init_ui()
 
         self._client = Client(conf[conf.default_section]['login'], conf[conf.default_section]['password'],
                               self.on_receive_msg_callback, bool(conf[conf.default_section]['registration']))
-        # conf[conf.default_section]['database'] - не нужен
-        # conf[conf.default_section]['server'] - -//-
-        # conf[conf.default_section]['port'] - const 3501
 
         lst = self._client.get_contacts_list()
-        lst = ['friend_1', 'friend_2']
+        # lst = ['friend_1', 'friend_2']
         for i in lst:
             self._friends.insert(END, i)
         self._friends.select_set(0)
         self._friends.event_generate("<<ListboxSelect>>")
 
         self._loop = asyncio.get_event_loop()
-        self._loop.run_until_complete(self._client.establish_connections())
+        # self._loop.run_until_complete(self._client.establish_connections())
+
+        self._listner = threading.Thread(target=self.start_listner)
+        self._listner.start()
 
     def init_ui(self):
         self.title('P2P-chat')
@@ -67,7 +71,7 @@ class P2PWindow(Tk):
         new_item = Menu(_menu)
         new_item2 = Menu(_menu)
 
-        new_item.add_command(label='Exit', command=exit)
+        new_item.add_command(label='Exit', command=self.p2p_exit)
         _menu.add_cascade(label='File', menu=new_item)
 
         new_item2.add_command(label='Add', command=self.add_friend)
@@ -77,6 +81,11 @@ class P2PWindow(Tk):
         _menu.add_cascade(label='Friend', menu=new_item2)
 
         self.config(menu=_menu)
+
+    def p2p_exit(self):
+        self._exiting = True
+        self._listner.join()
+        exit()
 
     def mes_send_1(self):
         self._loop.run_until_complete(self._client.send_message(self._current_friend, self._txt.get()))
@@ -145,15 +154,18 @@ class P2PWindow(Tk):
         top.wait_window()
         return result.get()
 
+    def start_listner(self):
+        while not self._exiting:
+            # Код ждун
+            asyncio.sleep(0.05)
+
 
 def p2p_configure(conf):
     def button_cmd(status):
         if status is not None:
             conf[conf.default_section]['login'] = en_login.get()
             conf[conf.default_section]['password'] = en_password.get()
-            conf[conf.default_section]['database'] = en_database.get()
             conf[conf.default_section]['server'] = en_server.get()
-            conf[conf.default_section]['port'] = en_port.get()
             conf[conf.default_section]['registration'] = status
         window_2.destroy()
         result.set(status)
@@ -175,26 +187,12 @@ def p2p_configure(conf):
     if conf.has_option(conf.default_section, 'password'):
         en_password.insert(0, conf[conf.default_section]['password'])
 
-    Label(window_2, text="database").grid(row=2, column=0)
-    en_database = Entry(window_2)
-    en_database.grid(row=2, column=1, columnspan=2)
-    if not conf.has_option(conf.default_section, 'database'):
-        conf[conf.default_section]['database'] = 'Chinook_Sqlite.sqlite'
-    en_database.insert(0, conf[conf.default_section]['database'])
-
-    Label(window_2, text="server").grid(row=3, column=0)
+    Label(window_2, text="server").grid(row=2, column=0)
     en_server = Entry(window_2)
-    en_server.grid(row=3, column=1, columnspan=2)
+    en_server.grid(row=2, column=1, columnspan=2)
     if not conf.has_option(conf.default_section, 'server'):
         conf[conf.default_section]['server'] = '127.0.0.1'
     en_server.insert(0, conf[conf.default_section]['server'])
-
-    Label(window_2, text="port").grid(row=4, column=0)
-    en_port = Entry(window_2)
-    en_port.grid(row=4, column=1, columnspan=2)
-    if not conf.has_option(conf.default_section, 'port'):
-        conf[conf.default_section]['port'] = '3502'
-    en_port.insert(0, conf[conf.default_section]['port'])
 
     Button(window_2, text='Login', command=lambda: button_cmd('False')).grid(row=5, column=0)
     Button(window_2, text='Register', command=lambda: button_cmd('True')).grid(row=5, column=1)
@@ -210,5 +208,10 @@ status = p2p_configure(config)
 if status != 'None':
     with open('P2P_client.ini', 'w') as configfile:
         config.write(configfile)
+    if status == 'True':
+        database = DataBaseClient(config[config.default_section]['login'] + ".sqlite")
+        database.init()
+        database.update_ip('server', config[config.default_section]['server'], datetime.now())
+        del database
     main_window = P2PWindow(config)
     main_window.mainloop()

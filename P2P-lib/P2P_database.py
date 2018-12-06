@@ -154,9 +154,13 @@ class DataBaseClient:
         cur.execute("SELECT ip, last_time FROM friends WHERE friend = ? ;", (login, ))
         result = cur.fetchall()
         cur.close()
-        if len(result) == 0:
-            return '0.0.0.0', datetime(MINYEAR, 1, 1)
-        return result[0][0], datetime.strptime(result[0][1], '%Y-%m-%d %H:%M:%S.%f')
+        if len(result) != 0:
+            try:
+                return result[0][0], datetime.strptime(result[0][1], '%Y-%m-%d %H:%M:%S.%f')
+            except:
+                # log: database has wrong value!
+                return '0.0.0.0', datetime(MINYEAR, 1, 1)
+        return '0.0.0.0', datetime(MINYEAR, 1, 1)
 
     def add_message(self, login_fr: str, time, type_m: bool, mess)->bool:
         cur = self._db_conn.cursor()
