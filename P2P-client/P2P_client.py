@@ -30,15 +30,15 @@ class Client:
             self._ip, self._last_update = Client._Contact.database.search_ip_and_last_time(name)
             history = Client._Contact.database.search_messages(name)
             self._history = []
-            for time, msg_type, text in history:
+            for time, msg_type, text, who in history:
                 if msg_type:
-                    self._history.append((None, time, text))   # DEBUG
+                    self._history.append((self._login if who else self.name, time, text))   # DEBUG
             self.connection = network.ClientToClient(login, name, self._ip)
 
         @Logger.logged("client")
         def add_text_message(self, message: str, sender: str):
             time = datetime.now()
-            Client._Contact.database.add_message(self.name, time, True, message)
+            Client._Contact.database.add_message(self.name, time, True, message, sender == self._login)
             self._history.append((sender, time, message))
 
         @Logger.logged("client")
