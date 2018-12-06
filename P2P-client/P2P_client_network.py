@@ -239,7 +239,7 @@ class _IConnection:
             if await self._check_connection(1):
                 Logger.log(f"Connection with ({self._host}:{self._port}) was established.", "client")
                 return
-        self._raise_customised_exception("Couldn't (re)create connection with ({self._host}:{self._port}).", 251)
+            self._raise_customised_exception(f"Couldn't (re)create connection with ({self._host}:{self._port}).", 251)
 
 
     @staticmethod
