@@ -328,7 +328,7 @@ class Client:
         Возвращаемое значение - список строк, каждая из которых
         является логином пользователя из списка контактов.
         """
-        return [i.name for i in self._contacts]
+        return [i for i in self._contacts]
 
     @Logger.logged("client")
     async def add_contact(self, name: str):
