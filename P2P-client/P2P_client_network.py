@@ -312,7 +312,7 @@ class ClientToServer(_IConnection):
             else:
                 result.append((ip, datetime.strptime(time, "%H:%M:%S.%f %d.%m.%Y")))
             count -= 1
-        Logger.log(f"Requested IPs were received.", "client")
+        Logger.log("Requested IPs were received.", "client")
         return result
 
     @Logger.logged("client")
@@ -366,7 +366,7 @@ class ClientToClient(_IConnection):
         code, data = await self._get_data()
         if code != 5:
             self._raise_customised_exception(Extentions.bytes_to_defstr(data)[0], code)
-        Logger.log("Message to '{self.client_login}' ({self._host}:{self._port}) was successfully sent.")
+        Logger.log(f"Message to '{self.client_login}' ({self._host}:{self._port}) was successfully sent.")
 
     @Logger.logged("client")
     async def get_IPs(self, logins: List[str]) -> List[Tuple[str, datetime]]:
