@@ -168,7 +168,7 @@ class Client:
         return False
 
     @Logger.logged("client")
-    async def _discover_contacts(self, names: List[str]) -> bool:
+    async def _discover_clients(self, names: List[str]) -> bool:
         result = False
         internal_ip = socket.gethostbyname(socket.gethostname())
         template_ip = internal_ip[:internal_ip.rfind(".") + 1]
@@ -192,10 +192,35 @@ class Client:
                             self._server = network.ClientToServer(i[0])
                             self._database.update_ip("server", *i)
                     else:
-                        self._contacts[n].update_ip(*i)
+                        self._contacts[n, ip[0], ip[1]].update_ip(*i)
             except network.ClientToClientException:
                 continue
         return result
+
+    async def _login_or_registration(self) -> bool:
+        if self._need_registration:
+            action = self._server.registration(self.login, self._password)
+        else:
+            action = self._server.login(self.login, self._password)
+        try:
+            await action
+            return True
+        except network.ClientToServerException as ex:
+            if ex.code == 251:
+                if (not await self._discover_server() and
+                    not await self._discover_clients(["server"])):
+                        return False
+                else:
+                    try:
+                        await action
+                        return True
+                    except network.ClientToServerException as ex:
+                        if ex.code == 251:
+                            return False
+                        else:
+                            raise ex
+            else:
+                raise ex
 
     @Logger.logged("client") # This function would be better, but...
     async def establish_connections(self) -> bool: # we hadn't got enough time to improve it :(
@@ -214,29 +239,11 @@ class Client:
         server_endpoint = self._Contact.database.search_ip_and_last_time("server")[0]
         if server_endpoint == "0.0.0.0":
             if not await self._discover_server():
-                if not await self._discover_contacts(["server"]):
+                if not await self._discover_clients(["server"]):
                     self._server = network.ClientToServer("0.0.0.0")
         else:
-            server_endpoint = server_endpoint
             self._server = network.ClientToServer(server_endpoint)
-        if self._need_registration:
-            try:
-                await self._server.registration(self.login, self._password)
-                self.is_connected = True
-            except network.ClientToServerException as ex:
-                if ex.code == 251:
-                    self.is_connected = False
-                else:
-                    raise ex
-        else:
-            try:
-                await self._server.login(self.login, self._password)
-                self.is_connected = True
-            except network.ClientToServerException as ex:
-                if ex.code == 251:
-                    self.is_connected = False
-                else:
-                    raise ex
+        self.is_connected = self._login_or_registration()
         contacts_ips = await self._get_ips_by_names(contacts_names)
         server_update_time = self._database.search_ip_and_last_time("server")
         if server_update_time[0] != "0.0.0.0":
@@ -283,6 +290,12 @@ class Client:
                     client_result[i][0] is not None and
                     result[1][1] < client_result[i][1]):
                         result[i] = client_result[i]
+        unfound = []
+        for i in range(0, len(names)):
+            if result[i] == (None, None):
+                unfound.append(names[i])
+        if unfound != []:
+            await self._discover_clients(unfound)
         return result
 
     @Logger.logged("client")
