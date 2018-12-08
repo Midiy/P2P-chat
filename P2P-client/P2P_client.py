@@ -193,12 +193,12 @@ class Client:
                             self._database.update_ip("server", *i)
                     else:
                         self._contacts[n].update_ip(*i)
-            except network.ClientToClient:
+            except network.ClientToClientException:
                 continue
         return result
 
-    @Logger.logged("client")
-    async def establish_connections(self) -> bool:
+    @Logger.logged("client") # This function would be better, but...
+    async def establish_connections(self) -> bool: # we hadn't got enough time to improve it :(
         """
         Асинхронный метод, устанавливающий соединение с сервером и пользователями
         из списка контактов и обновляющий IP-адреса. Должен быть однократно вызван
@@ -214,7 +214,7 @@ class Client:
         server_endpoint = self._Contact.database.search_ip_and_last_time("server")[0]
         if server_endpoint == "0.0.0.0":
             if not await self._discover_server():
-                if not await self._discover_contacts():
+                if not await self._discover_contacts(["server"]):
                     self._server = network.ClientToServer("0.0.0.0")
         else:
             server_endpoint = server_endpoint
