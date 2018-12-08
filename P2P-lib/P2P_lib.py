@@ -1,11 +1,11 @@
 # Encoding: utf-8
 
 from time import asctime
-from curio import run
 from typing import Callable, Any
 
 try:
     import igd
+    from curio import run
     is_igd_presented = True
 except:
     is_igd_presented = False

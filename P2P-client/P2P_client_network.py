@@ -231,12 +231,12 @@ class _IConnection:
             self._raise_not_implemented_error()
         if self._writer is None or not await self._check_connection(1):
             try:
-                connection = await asyncio.wait_for(asyncio.open_connection(self._host, self._port), 1)
+                connection = await asyncio.wait_for(asyncio.open_connection(self._host, self._port), 0.25)
             except (OSError, TimeoutError):
                 self._raise_customised_exception(f"Couldn't (re)create connection with ({self._host}:{self._port}).", 251)
                 return
             self._reader, self._writer = connection
-            if await self._check_connection(1):
+            if await self._check_connection(0.25):
                 Logger.log(f"Connection with ({self._host}:{self._port}) was established.", "client")
                 return
             self._raise_customised_exception(f"Couldn't (re)create connection with ({self._host}:{self._port}).", 251)
