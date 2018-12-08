@@ -148,17 +148,17 @@ class P2PWindow(Tk):
     def get_friend(self, mess) -> str:
         result = StringVar()
         top = Toplevel(self)
-        top.geometry('350x200')
+        top.geometry('240x70')
         top.title(mess)
-        txt_name = Entry(top, width=50)
-        txt_name.grid(row=0, column=0, columnspan=2)
+        txt_name = Entry(top, width=38)
+        txt_name.grid(row=0, column=0, columnspan=2, padx=5, pady=5)
 
         def ok_cmd():
             result.set(txt_name.get())
             top.destroy()
 
-        Button(top, text='OK', command=ok_cmd).grid(row=2, column=0)
-        Button(top, text='Cancel', command=top.destroy).grid(row=2, column=1)
+        Button(top, text='OK', command=ok_cmd).grid(row=2, column=0, padx=5, pady=5)
+        Button(top, text='Cancel', command=top.destroy).grid(row=2, column=1, padx=5, pady=5)
         top.transient(self)
         top.grab_set()
         top.focus_set()
@@ -191,32 +191,32 @@ def p2p_configure(conf):
         result.set(status)
 
     window_2 = Tk()
-    window_2.geometry('300x400')
+    window_2.geometry('280x140')
     window_2.title("P2P chat configure")
 
     result = StringVar()
-    Label(window_2, text="login").grid(row=0, column=0)
-    en_login = Entry(window_2)
-    en_login.grid(row=0, column=1, columnspan=2)
+    Label(window_2, text="login").grid(row=0, column=0, padx=5, pady=5)
+    en_login = Entry(window_2, width=30)
+    en_login.grid(row=0, column=1, columnspan=2, padx=5, pady=5)
     if conf.has_option(conf.default_section, 'login'):
         en_login.insert(0, conf[conf.default_section]['login'])
 
-    Label(window_2, text="password").grid(row=1, column=0)
-    en_password = Entry(window_2)
-    en_password.grid(row=1, column=1, columnspan=2)
+    Label(window_2, text="password").grid(row=1, column=0, padx=5, pady=5)
+    en_password = Entry(window_2, width=30)
+    en_password.grid(row=1, column=1, columnspan=2, padx=5, pady=5)
     if conf.has_option(conf.default_section, 'password'):
         en_password.insert(0, conf[conf.default_section]['password'])
 
-    Label(window_2, text="server").grid(row=2, column=0)
-    en_server = Entry(window_2)
-    en_server.grid(row=2, column=1, columnspan=2)
+    Label(window_2, text="server").grid(row=2, column=0, padx=5, pady=5)
+    en_server = Entry(window_2, width=30)
+    en_server.grid(row=2, column=1, columnspan=2, padx=5, pady=5)
     if not conf.has_option(conf.default_section, 'server'):
         conf[conf.default_section]['server'] = '127.0.0.1'
     en_server.insert(0, conf[conf.default_section]['server'])
 
-    Button(window_2, text='Login', command=lambda: button_cmd('False')).grid(row=5, column=0)
-    Button(window_2, text='Register', command=lambda: button_cmd('True')).grid(row=5, column=1)
-    Button(window_2, text='Cancel', command=lambda: button_cmd(None)).grid(row=5, column=2)
+    Button(window_2, text='Login', command=lambda: button_cmd('False')).grid(row=5, column=0, padx=5, pady=5)
+    Button(window_2, text='Register', command=lambda: button_cmd('True')).grid(row=5, column=1, padx=5, pady=5)
+    Button(window_2, text='Cancel', command=lambda: button_cmd(None)).grid(row=5, column=2, padx=5, pady=5)
 
     window_2.mainloop()
     return result.get()
